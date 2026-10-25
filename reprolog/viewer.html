@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>reprolog</title>
+<style>
+:root{
+  --bg:#f4f5f7;--panel:#ffffff;--sunk:#eef0f3;--fg:#171b22;--muted:#5d6675;--faint:#8a93a3;--line:#dfe3e9;
+  --accent:#2e5bd8;--accent-soft:#e3eafc;--err:#c33a2c;--err-soft:#fbe6e3;--warn:#a86400;--warn-soft:#fbefd9;--ok:#1d7a4b;--ok-soft:#dff3e8;
+  --k-request:#2e5bd8;--k-db:#7a4fd1;--k-redis:#cc4b2c;--k-http:#0f8a85;--k-llm:#b07a00;--k-internal:#6b7686;
+  --mono:ui-monospace,SFMono-Regular,"JetBrains Mono",Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0f1217;--panel:#161a21;--sunk:#1d222b;--fg:#e5e8ee;--muted:#9aa3b2;--faint:#6f7888;--line:#272d38;
+  --accent:#7e9cff;--accent-soft:#1f2a46;--err:#ff7a6c;--err-soft:#3a1d1a;--warn:#f0b450;--warn-soft:#3a2c14;--ok:#5fd39b;--ok-soft:#14321f;
+  --k-request:#7e9cff;--k-db:#b494ff;--k-redis:#ff8a6b;--k-http:#4cc7c0;--k-llm:#f0c14b;--k-internal:#8f99aa;color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font:13px/1.45 var(--sans);background:var(--bg);color:var(--fg);display:flex;flex-direction:column}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.mono{font-family:var(--mono)}
+/* top bar */
+.top{display:flex;align-items:center;gap:14px;padding:9px 16px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
+.brand{font:700 14px var(--mono);letter-spacing:.02em}
+.brand b{color:var(--accent)}
+.live{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--faint)}
+.live.on .dot{background:var(--ok);box-shadow:0 0 0 0 color-mix(in srgb,var(--ok) 60%,transparent);animation:pulse 2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--ok) 50%,transparent)}70%{box-shadow:0 0 0 7px transparent}100%{box-shadow:0 0 0 0 transparent}}
+@media (prefers-reduced-motion:reduce){.live.on .dot{animation:none}.row.new{animation:none!important}}
+.top .meta{margin-left:auto;color:var(--faint);font-size:12px}
+/* layout */
+.app{flex:1;display:grid;grid-template-columns:minmax(280px,360px) minmax(0,1fr) minmax(300px,420px);min-height:0}
+.pane{min-height:0;overflow:auto;min-width:0}
+.feed{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden}
+.feed-tools{display:flex;gap:6px;padding:10px;border-bottom:1px solid var(--line)}
+.feed-tools input{flex:1;min-width:0;padding:6px 9px;border:1px solid var(--line);border-radius:6px;background:var(--sunk)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{border:0;background:transparent;padding:5px 9px;font-size:12px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.rows{overflow:auto;flex:1}
+.row{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:8px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line);cursor:pointer;width:100%;text-align:left;background:transparent;border-left:3px solid transparent;border-top:0;border-right:0}
+.row:hover{background:var(--sunk)}
+.row.sel{background:var(--accent-soft);border-left-color:var(--accent)}
+.row.new{animation:flash 1.6s ease-out}
+@keyframes flash{from{background:color-mix(in srgb,var(--accent) 18%,transparent)}to{background:transparent}}
+.pill{font:600 11px var(--mono);padding:2px 0;border-radius:4px;text-align:center}
+.s5{color:var(--err);background:var(--err-soft)}.s4{color:var(--warn);background:var(--warn-soft)}.s2,.s3{color:var(--ok);background:var(--ok-soft)}.s0{color:var(--muted);background:var(--sunk)}
+.path{font:12.5px var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sub{font-size:11.5px;color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sub .e{color:var(--err)}
+.dur{font:11.5px var(--mono);color:var(--muted);text-align:right}
+.tag{display:inline-block;font:600 10px var(--sans);letter-spacing:.04em;text-transform:uppercase;padding:1px 5px;border-radius:3px;background:var(--accent-soft);color:var(--accent);margin-right:4px;vertical-align:1px}
+.empty{color:var(--faint);padding:36px 20px;text-align:center;line-height:1.6}
+.empty code{font-family:var(--mono);background:var(--sunk);padding:1px 5px;border-radius:4px;color:var(--fg)}
+/* main */
+.main{padding:16px 20px 40px}
+.head{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.head h2{margin:0;font:600 16px var(--mono);word-break:break-all;flex:1;min-width:0}
+.head h2 .pill{display:inline-block;padding:2px 7px;margin-right:6px;vertical-align:2px}
+.facts{display:flex;flex-wrap:wrap;gap:4px 14px;color:var(--muted);font-size:12px;margin:6px 0 14px}
+.facts .mono{font-size:11.5px}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:7px;padding:6px 12px;font-weight:500}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn[disabled]{opacity:.6;cursor:progress}
+.replay-box{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:10px 12px;margin-bottom:14px}
+.replay-box summary{cursor:pointer;color:var(--muted);font-size:12px}
+.replay-box textarea{width:100%;min-height:54px;margin-top:8px;padding:7px;border:1px solid var(--line);border-radius:6px;background:var(--sunk);font:12px var(--mono);resize:vertical}
+.replay-box label{display:inline-flex;gap:6px;align-items:center;font-size:12px;color:var(--muted);margin-top:6px}
+.verdict{border-radius:8px;padding:10px 12px;margin-bottom:14px;border:1px solid}
+.verdict.repro{background:var(--err-soft);border-color:color-mix(in srgb,var(--err) 40%,transparent)}
+.verdict.fixed{background:var(--ok-soft);border-color:color-mix(in srgb,var(--ok) 40%,transparent)}
+.verdict.other{background:var(--warn-soft);border-color:color-mix(in srgb,var(--warn) 40%,transparent)}
+.verdict strong{display:block;margin-bottom:2px}
+.verdict .small{font-size:12px;color:var(--muted)}
+.verdict details{margin-top:6px}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:12px}
+.tabs button{border:0;background:transparent;padding:7px 12px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tabs button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--accent);font-weight:600}
+/* waterfall */
+.wf{border:1px solid var(--line);border-radius:8px;background:var(--panel);overflow:hidden}
+.wf-head,.span{display:grid;grid-template-columns:minmax(180px,40%) minmax(0,1fr) 64px;align-items:center}
+.wf-head{font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.06em;padding:6px 10px;border-bottom:1px solid var(--line);background:var(--sunk)}
+.wf-head .ticks{display:flex;justify-content:space-between;font-family:var(--mono);text-transform:none;letter-spacing:0}
+.span{padding:4px 10px;border-bottom:1px solid var(--line);cursor:pointer;background:transparent;border-top:0;border-left:0;border-right:0;width:100%;text-align:left;min-height:30px}
+.span:last-child{border-bottom:0}
+.span:hover{background:var(--sunk)}
+.span.sel{background:var(--accent-soft)}
+.sname{display:flex;align-items:center;gap:6px;min-width:0;padding-right:10px}
+.caret{width:14px;flex:none;color:var(--faint);font-size:10px;text-align:center}
+.kind{flex:none;font:600 9.5px var(--sans);letter-spacing:.05em;text-transform:uppercase;padding:1px 4px;border-radius:3px;color:#fff}
+.k-request{background:var(--k-request)}.k-db{background:var(--k-db)}.k-redis{background:var(--k-redis)}.k-http{background:var(--k-http)}.k-llm{background:var(--k-llm)}.k-internal{background:var(--k-internal)}
+.stext{font:12px var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.span.error .stext{color:var(--err)}
+.badge{flex:none;font:600 10px var(--mono);color:var(--muted);background:var(--sunk);border-radius:8px;padding:0 5px}
+.track{position:relative;height:14px;background:repeating-linear-gradient(90deg,transparent 0 calc(25% - 1px),var(--line) calc(25% - 1px) 25%)}
+.bar{position:absolute;top:2px;height:10px;border-radius:2px;min-width:2px;opacity:.9}
+.span.error .bar{outline:1.5px solid var(--err);outline-offset:1px}
+.logtick{position:absolute;top:0;width:1px;height:14px;background:var(--fg);opacity:.35}
+.sdur{font:11.5px var(--mono);color:var(--muted);text-align:right}
+/* sections */
+h3{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);margin:18px 0 6px;font-weight:600}
+pre{margin:0;background:var(--sunk);border:1px solid var(--line);border-radius:6px;padding:9px 11px;font:12px/1.5 var(--mono);white-space:pre-wrap;word-break:break-word;overflow:auto;max-height:420px}
+pre.err{color:var(--err)}
+table.kv{border-collapse:collapse;width:100%;font:12px var(--mono)}
+table.kv td{border-bottom:1px solid var(--line);padding:4px 6px;vertical-align:top;word-break:break-word}
+table.kv td:first-child{color:var(--muted);width:38%;word-break:break-all}
+.cmd{display:flex;gap:6px}.cmd pre{flex:1;min-width:0}
+/* side */
+.side{background:var(--panel);border-left:1px solid var(--line);padding:14px 16px 40px}
+.side h4{margin:0 0 2px;font:600 14px var(--mono);word-break:break-all}
+.loglist{display:flex;flex-direction:column;gap:6px}
+.log{border:1px solid var(--line);border-radius:6px;padding:6px 9px;background:var(--panel)}
+.log .lh{display:flex;gap:8px;font:11px var(--mono);color:var(--faint)}
+.log .lv{font-weight:700}
+.lv-ERROR,.lv-CRITICAL,.lv-FATAL{color:var(--err)}.lv-WARNING{color:var(--warn)}.lv-INFO,.lv-NOTICE{color:var(--accent)}
+.log .lm{font:12px var(--mono);margin-top:2px;word-break:break-word}
+.log details pre{margin-top:6px}
+.muted{color:var(--faint)}
+@media (max-width:1100px){.app{grid-template-columns:minmax(260px,320px) minmax(0,1fr)}.side{grid-column:1 / -1;border-left:0;border-top:1px solid var(--line)}}
+@media (max-width:720px){.app{grid-template-columns:1fr;display:block;overflow:auto}.feed{max-height:45vh}.pane{overflow:visible}.wf-head,.span{grid-template-columns:minmax(140px,48%) minmax(0,1fr) 56px}}
+</style>
+</head>
+<body>
+<header class="top">
+  <span class="brand">repro<b>log</b></span>
+  <span class="live" id="live"><span class="dot"></span><span id="live-text">Connecting…</span></span>
+  <span class="meta mono" id="meta"></span>
+</header>
+<div class="app">
+  <aside class="feed">
+    <div class="feed-tools">
+      <input id="q" type="search" placeholder="Filter by path, status or error" aria-label="Filter requests">
+      <div class="seg" role="group" aria-label="Show">
+        <button id="f-all" aria-pressed="true">All</button>
+        <button id="f-err" aria-pressed="false">Errors</button>
+      </div>
+    </div>
+    <div class="rows" id="rows"></div>
+  </aside>
+  <main class="pane main" id="main">
+    <div class="empty">Select a request to see its spans, logs and outbound calls.</div>
+  </main>
+  <aside class="pane side" id="side">
+    <div class="empty">Click a span to see what happened inside it.</div>
+  </aside>
+</div>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const sc = s => !s ? "s0" : "s" + String(s)[0];
+const fmtMs = ms => ms == null ? "–" : ms < 1 ? ms.toFixed(2) + " ms" : ms < 1000 ? Math.round(ms) + " ms" : (ms / 1000).toFixed(2) + " s";
+const fmtTime = ts => new Date(ts * 1000).toLocaleTimeString([], {hour12:false}) + "." + String(Math.floor((ts % 1) * 1000)).padStart(3, "0");
+const state = {rows: [], filter: "all", q: "", sel: null, cap: null, span: null, maxSeq: 0, collapsed: new Set(), tab: "spans", lastReplay: null};
+
+function pretty(b) {
+  if (!b || b.encoding === "empty") return "(empty)" + (b && b.note ? " · " + b.note : "");
+  let d = b.data || "";
+  if (b.encoding === "base64") return "(binary, " + d.length + " base64 chars)";
+  try { d = JSON.stringify(JSON.parse(d), null, 2); } catch (e) {}
+  return d + (b.note ? "\n\n(" + b.note + ")" : "");
+}
+function kv(obj) {
+  const entries = Array.isArray(obj) ? obj : Object.entries(obj || {});
+  if (!entries.length) return '<div class="muted">(none)</div>';
+  return '<table class="kv">' + entries.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(typeof v === "object" ? JSON.stringify(v) : v)}</td></tr>`).join("") + "</table>";
+}
+
+/* ---------- feed ---------- */
+function matches(r) {
+  if (state.filter === "err" && !((r.status || 0) >= 500 || r.error_type)) return false;
+  if (!state.q) return true;
+  const hay = `${r.method} ${r.path} ${r.status} ${r.error_type || ""} ${r.error_message || ""}`.toLowerCase();
+  return hay.includes(state.q.toLowerCase());
+}
+function rowHtml(r, isNew) {
+  const err = r.error_type ? `<span class="e">${esc(r.error_type)}</span> · ` : "";
+  const tag = r.replay_of ? '<span class="tag">replay</span>' : "";
+  return `<button class="row${r.id === state.sel ? " sel" : ""}${isNew ? " new" : ""}" data-id="${r.id}">
+    <span class="pill ${sc(r.status)}">${r.status ?? "–"}</span>
+    <span style="min-width:0"><div class="path">${tag}${esc(r.method)} ${esc(r.path)}</div><div class="sub">${err}${fmtTime(r.created_at)}</div></span>
+    <span class="dur">${fmtMs(r.duration_ms)}</span></button>`;
+}
+function renderFeed(newIds = new Set()) {
+  const rows = state.rows.filter(matches);
+  $("#rows").innerHTML = rows.length ? rows.map(r => rowHtml(r, newIds.has(r.id))).join("") :
+    `<div class="empty">No requests yet.<br>Start your app with <code>REPROLOG_ENABLED=1</code><br>(add <code>REPROLOG_CAPTURE_ALL=1</code> to see every request, not only failures).</div>`;
+  document.querySelectorAll(".row").forEach(el => el.onclick = () => openCapture(el.dataset.id));
+}
+async function loadFeed() {
+  const [rows, info] = await Promise.all([fetch("/api/captures?limit=400").then(r => r.json()), fetch("/api/info").then(r => r.json())]);
+  state.rows = rows;
+  state.maxSeq = rows.reduce((m, r) => Math.max(m, r.seq || 0), 0);
+  $("#meta").textContent = info.app + " · " + info.db.split("/").slice(-3).join("/");
+  renderFeed();
+  connect();
+}
+function connect() {
+  const es = new EventSource("/api/stream?after=" + state.maxSeq);
+  es.onopen = () => { $("#live").classList.add("on"); $("#live-text").textContent = "Live"; };
+  es.onerror = () => { $("#live").classList.remove("on"); $("#live-text").textContent = "Reconnecting…"; };
+  es.onmessage = ev => {
+    const r = JSON.parse(ev.data);
+    state.maxSeq = Math.max(state.maxSeq, r.seq || 0);
+    state.rows = [r, ...state.rows.filter(x => x.id !== r.id)].slice(0, 1000);
+    renderFeed(new Set([r.id]));
+  };
+}
+
+/* ---------- capture detail ---------- */
+async function openCapture(id, keepReplay) {
+  state.sel = id; state.span = null;
+  if (!keepReplay) state.lastReplay = null;
+  document.querySelectorAll(".row").forEach(el => el.classList.toggle("sel", el.dataset.id === id));
+  const cap = await fetch("/api/captures/" + id).then(r => r.json());
+  if (cap.error && !cap.request) { $("#main").innerHTML = `<div class="empty">${esc(cap.error)}</div>`; return; }
+  state.cap = cap;
+  const root = (cap.spans || [])[0];
+  state.span = root ? root.id : null;
+  renderMain(); renderSide();
+}
+
+function spanTree(spans) {
+  const kids = {}, byId = {};
+  spans.forEach(s => { byId[s.id] = s; (kids[s.parent_id ?? "_"] ||= []).push(s); });
+  Object.values(kids).forEach(list => list.sort((a, b) => a.start - b.start));
+  const out = [];
+  const walk = (s, depth) => {
+    out.push({s, depth, hasKids: !!(kids[s.id] && kids[s.id].length)});
+    if (!state.collapsed.has(s.id)) (kids[s.id] || []).forEach(k => walk(k, depth + 1));
+  };
+  (kids["_"] || []).forEach(r => walk(r, 0));
+  return out;
+}
+
+function renderWaterfall(cap) {
+  const spans = cap.spans || [];
+  if (!spans.length) return '<div class="empty">This capture has no span data.</div>';
+  const t0 = Math.min(...spans.map(s => s.start)), t1 = Math.max(...spans.map(s => s.end), t0 + 0.001);
+  const total = (t1 - t0) * 1000;
+  const logsBy = {};
+  (cap.logs || []).forEach(l => (logsBy[l.span_id] ||= []).push(l));
+  const ticks = [0, .25, .5, .75, 1].map(f => `<span>${fmtMs(total * f)}</span>`).join("");
+  const rows = spanTree(spans).map(({s, depth, hasKids}) => {
+    const left = ((s.start - t0) / (t1 - t0)) * 100, width = Math.max(((s.end - s.start) / (t1 - t0)) * 100, 0.3);
+    const logs = logsBy[s.id] || [];
+    const marks = logs.map(l => `<span class="logtick" style="left:${(((l.time - t0) / (t1 - t0)) * 100).toFixed(2)}%"></span>`).join("");
+    const caret = hasKids ? (state.collapsed.has(s.id) ? "▸" : "▾") : "";
+    return `<button class="span${s.status === "error" ? " error" : ""}${s.id === state.span ? " sel" : ""}" data-id="${esc(s.id)}">
+      <span class="sname" style="padding-left:${depth * 14}px"><span class="caret" data-toggle="${esc(s.id)}">${caret}</span>
+        <span class="kind k-${esc(s.kind)}">${esc(s.kind)}</span><span class="stext" title="${esc(s.name)}">${esc(s.name)}</span>
+        ${logs.length ? `<span class="badge" title="log lines">${logs.length}</span>` : ""}</span>
+      <span class="track"><span class="bar k-${esc(s.kind)}" style="left:${left.toFixed(2)}%;width:${width.toFixed(2)}%"></span>${marks}</span>
+      <span class="sdur">${fmtMs((s.end - s.start) * 1000)}</span></button>`;
+  }).join("");
+  return `<div class="wf"><div class="wf-head"><span>Span</span><span class="ticks">${ticks}</span><span style="text-align:right">Time</span></div>${rows}</div>`;
+}
+
+function verdictHtml() {
+  const r = state.lastReplay;
+  if (!r) return "";
+  if (r.failed) return `<div class="verdict other"><strong>${esc(r.message)}</strong><details open><summary class="small">Output</summary><pre>${esc(r.output_tail || "")}</pre></details></div>`;
+  const v = r.verdict, info = (r.replayed && r.replayed.replay) || {};
+  const cls = v.reproduced ? "repro" : (v.replayed_status || 0) < 500 && !(r.replayed && r.replayed.error) ? "fixed" : "other";
+  const misses = (info.unmatched_outbound || []).map(m => `<div class="mono small">not in recording, sent live: ${esc(m.method)} ${esc(m.url)}</div>`).join("");
+  return `<div class="verdict ${cls}"><strong>${esc(v.summary)}</strong>
+    <div class="small">Status ${v.original_status ?? "–"} → ${v.replayed_status ?? "–"} · outbound served from recording: ${info.mocked_outbound ?? 0} of ${info.recorded_outbound ?? 0} · took ${r.seconds}s</div>${misses}
+    ${r.saved_id ? `<div style="margin-top:8px"><button class="btn" id="open-replay">Open replay spans</button></div>` : ""}
+    <details><summary class="small">Replay output</summary><pre>${esc(r.output_tail || "")}</pre></details></div>`;
+}
+
+function renderMain() {
+  const c = state.cap, q = c.request, s = c.response, e = c.error;
+  const qs = q.query_string ? "?" + q.query_string : "";
+  const redacted = (q.headers || []).filter(h => h[1] === "[REDACTED]").map(h => h[0]);
+  const tabs = [["spans", "Spans"], ["request", "Request"], ["response", "Response"], ...(e ? [["error", "Error"]] : [])];
+  let body = "";
+  if (state.tab === "spans") body = renderWaterfall(c);
+  if (state.tab === "request") body = `<h3>Body${q.body && q.body.redacted ? " · secrets redacted" : ""}</h3><pre>${esc(pretty(q.body))}</pre><h3>Headers</h3>${kv(q.headers)}
+    <h3>curl</h3><div class="cmd"><pre id="curl">${esc(c._curl)}</pre><button class="btn" data-copy="curl">Copy</button></div>
+    <h3>CLI replay</h3><div class="cmd"><pre id="cli">reprolog replay ${c.id} --app ${esc($("#meta").textContent.split(" · ")[0])}</pre><button class="btn" data-copy="cli">Copy</button></div>`;
+  if (state.tab === "response") body = `<h3>Status</h3><div class="mono">${s.status ?? "–"}</div><h3>Body</h3><pre>${esc(pretty(s.body))}</pre><h3>Headers</h3>${kv(s.headers)}`;
+  if (state.tab === "error" && e) body = `<h3>${esc(e.source === "logged" ? "Logged exception" : "Raised exception")}</h3><pre class="err">${esc(e.type)}: ${esc(e.message)}</pre><h3>Traceback</h3><pre>${esc(e.traceback || "")}</pre>`;
+  $("#main").innerHTML = `
+    <div class="head"><h2><span class="pill ${sc(s.status)}">${s.status ?? "–"}</span>${esc(q.method)} ${esc(q.path)}${esc(qs)}</h2>
+      <button class="btn primary" id="replay-btn">Replay</button></div>
+    <div class="facts"><span>${new Date(c.created_at * 1000).toLocaleString()}</span><span>${fmtMs(c.duration_ms)}</span>
+      <span class="mono">id ${esc(c.id)}</span>${c.trace_id ? `<span class="mono">trace ${esc(c.trace_id)}</span>` : ""}
+      ${c.replay_of ? `<span>replay of <a href="#" id="orig" class="mono">${esc(c.replay_of)}</a></span>` : ""}
+      ${e ? `<span class="mono" style="color:var(--err)">${esc(e.type)}: ${esc((e.message || "").slice(0, 120))}</span>` : ""}</div>
+    <details class="replay-box"${redacted.length ? " open" : ""}><summary>Replay options${redacted.length ? ` · ${redacted.length} header(s) were redacted: ${esc(redacted.join(", "))}` : ""}</summary>
+      <textarea id="hdrs" placeholder="One header per line, e.g.&#10;Authorization: Bearer <fresh token>" aria-label="Header overrides">${esc(localStorageGet("reprolog.hdrs"))}</textarea>
+      <label><input type="checkbox" id="live-out"> Call outside APIs for real (otherwise served from the recording)</label>
+      <div class="muted" style="font-size:11.5px;margin-top:4px">Database, Redis and email run for real during a replay.</div></details>
+    <div id="verdict">${verdictHtml()}</div>
+    <div class="tabs" role="tablist">${tabs.map(([k, l]) => `<button role="tab" data-tab="${k}" aria-selected="${state.tab === k}">${l}</button>`).join("")}</div>
+    <div id="tabbody">${body}</div>`;
+  $("#replay-btn").onclick = doReplay;
+  const orig = $("#orig"); if (orig) orig.onclick = ev => { ev.preventDefault(); openCapture(c.replay_of); };
+  const openR = $("#open-replay"); if (openR) openR.onclick = () => openCapture(state.lastReplay.saved_id, true);
+  $("#hdrs").oninput = ev => localStorageSet("reprolog.hdrs", ev.target.value);
+  document.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => { state.tab = b.dataset.tab; renderMain(); });
+  document.querySelectorAll("[data-copy]").forEach(b => b.onclick = () => copy(b.dataset.copy, b));
+  document.querySelectorAll(".span").forEach(el => el.onclick = ev => {
+    const t = ev.target.closest("[data-toggle]");
+    if (t && t.textContent) { state.collapsed.has(t.dataset.toggle) ? state.collapsed.delete(t.dataset.toggle) : state.collapsed.add(t.dataset.toggle); renderMain(); return; }
+    state.span = el.dataset.id; renderMain(); renderSide();
+  });
+}
+
+function renderSide() {
+  const c = state.cap;
+  if (!c) return;
+  const s = (c.spans || []).find(x => x.id === state.span);
+  if (!s) { $("#side").innerHTML = '<div class="empty">Click a span to see what happened inside it.</div>'; return; }
+  const logs = (c.logs || []).filter(l => l.span_id === s.id);
+  const call = s.outbound_index != null ? (c.outbound || [])[s.outbound_index] : null;
+  const exc = (s.events || []).filter(e => e.name === "exception");
+  let extra = "";
+  if (s.kind === "request" && c.error) extra += `<h3>Error</h3><pre class="err">${esc(c.error.type)}: ${esc(c.error.message)}</pre><details><summary class="muted">Traceback</summary><pre>${esc(c.error.traceback || "")}</pre></details>`;
+  if (call) extra += `<h3>Outbound call${call.kind === "llm" ? " · LLM" : ""}</h3><div class="mono" style="word-break:break-all">${esc(call.method)} ${esc(call.url)} → ${call.response.status ?? "error"}</div>
+    ${call.usage ? `<h3>Token usage</h3>${kv(call.usage)}` : ""}
+    ${call.error ? `<pre class="err">${esc(call.error)}</pre>` : ""}
+    <h3>Request body</h3><pre>${esc(pretty(call.request.body))}</pre><h3>Response body</h3><pre>${esc(pretty(call.response.body))}</pre>`;
+  exc.forEach(e => extra += `<h3>Exception</h3><pre class="err">${esc(e.attributes["exception.type"])}: ${esc(e.attributes["exception.message"])}</pre>${e.attributes["exception.stacktrace"] ? `<details><summary class="muted">Stack trace</summary><pre>${esc(e.attributes["exception.stacktrace"])}</pre></details>` : ""}`);
+  const logHtml = logs.length ? `<div class="loglist">${logs.map(l => `<div class="log"><div class="lh"><span>${fmtTime(l.time)}</span><span class="lv lv-${esc(l.level)}">${esc(l.level)}</span><span>${esc(l.logger)}</span></div>
+      <div class="lm">${esc(l.message)}</div>${l.fields ? `<details><summary class="muted" style="font-size:11px">fields</summary>${kv(l.fields)}</details>` : ""}
+      ${l.traceback ? `<details><summary class="muted" style="font-size:11px">traceback</summary><pre>${esc(l.traceback)}</pre></details>` : ""}
+      ${l.where ? `<div class="muted mono" style="font-size:10.5px;margin-top:2px">${esc(l.where)}</div>` : ""}</div>`).join("")}</div>` : '<div class="muted">No log lines in this span.</div>';
+  $("#side").innerHTML = `<div><span class="kind k-${esc(s.kind)}">${esc(s.kind)}</span></div><h4 style="margin-top:6px">${esc(s.name)}</h4>
+    <div class="facts"><span>${fmtMs((s.end - s.start) * 1000)}</span><span>starts +${fmtMs((s.start - c.spans[0].start) * 1000)}</span>
+    <span style="color:${s.status === "error" ? "var(--err)" : "var(--ok)"}">${s.status}</span>${s.synthetic ? '<span class="muted">from outbound capture</span>' : ""}</div>
+    <h3>Logs (${logs.length})</h3>${logHtml}${extra}
+    <h3>Attributes</h3>${kv(s.attributes)}`;
+}
+
+async function doReplay() {
+  const btn = $("#replay-btn");
+  const headers = ($("#hdrs").value || "").split("\n").map(x => x.trim()).filter(x => x.includes(":"));
+  btn.disabled = true; btn.textContent = "Replaying…";
+  $("#verdict").innerHTML = '<div class="verdict other"><strong>Replaying…</strong><div class="small">Importing your app and re-running the request.</div></div>';
+  try {
+    const res = await fetch("/api/replay/" + state.cap.id, {method: "POST", headers: {"Content-Type": "application/json", "X-Reprolog": "1"},
+      body: JSON.stringify({headers, live_outbound: $("#live-out").checked})});
+    state.lastReplay = await res.json();
+  } catch (e) {
+    state.lastReplay = {failed: true, message: "Could not reach the viewer: " + e.message};
+  }
+  btn.disabled = false; btn.textContent = "Replay";
+  $("#verdict").innerHTML = verdictHtml();
+  const openR = $("#open-replay"); if (openR) openR.onclick = () => openCapture(state.lastReplay.saved_id, true);
+}
+
+async function copy(id, btn) {
+  const node = document.getElementById(id);
+  try { await navigator.clipboard.writeText(node.textContent); btn.textContent = "Copied"; }
+  catch (e) { const r = document.createRange(); r.selectNodeContents(node); getSelection().removeAllRanges(); getSelection().addRange(r); btn.textContent = "Selected"; }
+  setTimeout(() => btn.textContent = "Copy", 1400);
+}
+function localStorageGet(k) { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }
+function localStorageSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+
+$("#q").oninput = ev => { state.q = ev.target.value; renderFeed(); };
+$("#f-all").onclick = () => { state.filter = "all"; $("#f-all").setAttribute("aria-pressed", "true"); $("#f-err").setAttribute("aria-pressed", "false"); renderFeed(); };
+$("#f-err").onclick = () => { state.filter = "err"; $("#f-err").setAttribute("aria-pressed", "true"); $("#f-all").setAttribute("aria-pressed", "false"); renderFeed(); };
+loadFeed();
+</script>
+</body>
+</html>

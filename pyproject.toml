@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "reprolog"
+version = "0.1.0"
+description = "Capture failing FastAPI/ASGI requests with logs and outbound calls, then replay them locally to reproduce the error."
+requires-python = ">=3.9"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest", "httpx", "fastapi"]
+
+[project.scripts]
+reprolog = "reprolog.cli:main"
+
+[tool.setuptools]
+packages = ["reprolog"]
+
+[tool.setuptools.package-data]
+reprolog = ["*.html"]
