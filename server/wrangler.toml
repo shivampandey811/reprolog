@@ -1,0 +1,26 @@
+name = "reprolog"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+# Pages are bundled as text so the hosted dashboard reuses the library's viewer.
+rules = [{ type = "Text", globs = ["**/*.html"], fallthrough = true }]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "reprolog"
+database_id = "f8ae861e-0daf-4963-8948-6291942a521c"
+
+# Daily 10-day cleanup (03:00 UTC).
+[triggers]
+crons = ["0 3 * * *"]
+
+[vars]
+RETENTION_DAYS = "10"
+DAILY_CAPTURE_LIMIT = "2000"   # per user, keeps the free 100k writes/day shared fairly
+MAX_PROJECTS = "10"
+
+# Secrets (wrangler secret put ...; locally in .dev.vars):
+#   SESSION_SECRET        random string used to sign login cookies
+#   GITHUB_CLIENT_ID      GitHub OAuth app
+#   GITHUB_CLIENT_SECRET
+#   DEV_LOGIN=1           local only: enables /auth/dev without GitHub

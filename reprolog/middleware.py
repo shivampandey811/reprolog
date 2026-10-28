@@ -10,7 +10,7 @@ import time
 import traceback
 import uuid
 
-from . import storage
+from . import remote, storage
 from .config import CONFIG
 from .context import Capture, current, registry
 from .redact import encode_body, header_value, headers_to_list, redact_headers
@@ -115,6 +115,7 @@ class ReprologMiddleware:
                         registry.last_replay_record = record
                     elif self._should_save(record, cap, exc):
                         await asyncio.to_thread(storage.save, record)
+                        remote.send(record)
                 except Exception:
                     pass  # capturing must never break a request
 

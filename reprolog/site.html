@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>reprolog</title>
+<meta name="description" content="Capture failing FastAPI requests with their logs, spans and outbound calls, then replay them on your laptop.">
+<style>
+:root{
+  --bg:#f3f1ec;--panel:#fbfaf7;--card:#ffffff;--sunk:#ece9e2;--fg:#1d1f1c;--muted:#5f625b;--faint:#92948c;--line:#e2ded4;
+  --accent:#0d8a7a;--accent-ink:#fff;--accent-soft:#d9efe9;--err:#d4553a;--err-soft:#f9e1da;--warn:#b7791f;--ok:#2f8f5b;
+  --code-bg:#1a1d1b;--code-fg:#e3e6df;--code-dim:#7f877c;--code-key:#3cc7b0;--code-str:#e7b04f;
+  --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;--sans:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#121412;--panel:#181b19;--card:#1d211e;--sunk:#252a26;--fg:#e8eae4;--muted:#a3a89e;--faint:#737a70;--line:#2a2f2b;
+  --accent:#3cc7b0;--accent-ink:#0b1f1b;--accent-soft:#163631;--err:#ff7f62;--err-soft:#3a1f19;--warn:#e7b04f;--ok:#6fd398;
+  --code-bg:#0c0e0d;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.6 var(--sans);background:var(--bg);color:var(--fg)}
+a{color:inherit}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+code,pre{font-family:var(--mono)}
+.btn{display:inline-flex;align-items:center;gap:8px;text-decoration:none;font-weight:600;font-size:15px;padding:11px 18px;border-radius:10px;background:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:none;color:var(--fg);border:1px solid var(--line)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+header{position:sticky;top:0;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);z-index:5}
+header .wrap{display:flex;align-items:center;gap:28px;height:62px}
+.brand{font:800 20px var(--sans);letter-spacing:-.02em;text-decoration:none}
+.brand i{font-style:normal;color:var(--accent)}
+header nav{display:flex;gap:22px;font-size:14.5px;color:var(--muted)}
+header nav a{text-decoration:none}header nav a:hover{color:var(--fg)}
+header .btn{margin-left:auto;padding:8px 14px;font-size:14px}
+
+.hero{padding:84px 0 56px;display:grid;grid-template-columns:1.05fr 1fr;gap:48px;align-items:center}
+.eyebrow{display:inline-block;font:600 12.5px var(--mono);color:var(--accent);background:var(--accent-soft);padding:4px 10px;border-radius:99px;margin-bottom:18px}
+h1{font:800 clamp(34px,5vw,52px)/1.05 var(--sans);letter-spacing:-.035em;margin:0 0 18px}
+h1 em{font-style:normal;color:var(--accent)}
+.lede{font-size:18px;color:var(--muted);margin:0 0 28px;max-width:30em}
+.cta{display:flex;gap:12px;flex-wrap:wrap}
+.install{margin-top:22px;font:13.5px var(--mono);color:var(--muted)}
+.install b{color:var(--fg);font-weight:500}
+
+.demo{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:0 20px 50px -24px #0004;overflow:hidden;font-size:13px}
+.demo .bar{display:flex;gap:6px;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--panel)}
+.demo .bar span{width:10px;height:10px;border-radius:50%;background:var(--line)}
+.req{display:grid;grid-template-columns:44px 52px 1fr auto;gap:10px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line)}
+.req.bad{box-shadow:inset 3px 0 var(--err);background:var(--err-soft)}
+.st{font:600 11.5px var(--mono);text-align:center;border-radius:6px;padding:2px 0;background:var(--sunk)}
+.bad .st{background:var(--err);color:#fff}
+.m{font:700 11.5px var(--mono);color:var(--accent)}
+.p{font-family:var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.d{font:12px var(--mono);color:var(--faint)}
+.wf{padding:14px;display:grid;gap:7px}
+.wf div{display:grid;grid-template-columns:120px 1fr;gap:10px;align-items:center;font:12px var(--mono);color:var(--muted)}
+.wf i{display:block;height:8px;border-radius:4px;background:var(--accent)}
+.verdict{margin:0 14px 14px;padding:10px 12px;border-radius:10px;background:var(--accent-soft);font-weight:600;font-size:13px}
+
+section{padding:64px 0}
+h2{font:780 30px/1.15 var(--sans);letter-spacing:-.025em;margin:0 0 10px}
+.sec-sub{color:var(--muted);margin:0 0 36px;max-width:36em}
+.feats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.feat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px}
+.feat .ic{width:34px;height:34px;border-radius:9px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;margin-bottom:14px}
+.feat h3{font:680 16px var(--sans);margin:0 0 6px}
+.feat p{margin:0;color:var(--muted);font-size:14.5px}
+.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+.start{display:grid;grid-template-columns:300px minmax(0,1fr);gap:40px;align-items:start}
+.tabs{display:grid;gap:6px;position:sticky;top:90px}
+.tabs button{all:unset;cursor:pointer;display:grid;grid-template-columns:30px 1fr;gap:10px;padding:12px 14px;border-radius:12px;border:1px solid transparent}
+.tabs button:focus-visible{outline:2px solid var(--accent)}
+.tabs button[aria-selected=true]{background:var(--card);border-color:var(--line)}
+.tabs .n{width:28px;height:28px;border-radius:50%;background:var(--sunk);display:grid;place-items:center;font:700 13px var(--sans);color:var(--muted)}
+.tabs [aria-selected=true] .n{background:var(--accent);color:var(--accent-ink)}
+.tabs b{display:block;font-size:15px}.tabs small{color:var(--muted);font-size:13px}
+.code{background:var(--code-bg);color:var(--code-fg);border-radius:14px;overflow:hidden}
+.code .top{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid #ffffff14;font:12.5px var(--mono);color:var(--code-dim)}
+.code button{all:unset;cursor:pointer;font:600 12px var(--sans);color:var(--code-fg);padding:4px 10px;border-radius:6px;background:#ffffff14}
+.code pre{margin:0;padding:18px 20px;font-size:13.5px;line-height:1.7;overflow:auto}
+.code .c{color:var(--code-dim)}.code .k{color:var(--code-key)}.code .s{color:var(--code-str)}
+.note{margin-top:14px;color:var(--muted);font-size:14.5px}
+
+.final{text-align:center;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:52px 24px;margin:0 0 72px}
+.final .cta{justify-content:center}
+footer{border-top:1px solid var(--line);padding:24px 0;color:var(--faint);font-size:13.5px}
+footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+
+@media (max-width:860px){
+  .hero,.start{grid-template-columns:1fr}.hero{padding-top:48px}
+  .feats{grid-template-columns:1fr}.tabs{position:static}header nav{display:none}
+  .wrap{padding:0 16px}
+}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <a class="brand" href="/">repro<i>log</i></a>
+  <nav><a href="#features">Features</a><a href="#start">Get started</a><a href="/app#tokens">API tokens</a></nav>
+  <a class="btn" href="/app">Open app</a>
+</div></header>
+
+<main class="wrap">
+  <div class="hero">
+    <div>
+      <span class="eyebrow">for FastAPI · local first</span>
+      <h1>Every failed request,<br><em>replayable</em> on your laptop.</h1>
+      <p class="lede">reprolog records what was sent, what your code logged, which databases and LLMs it called, and the traceback. When something breaks, press Replay and watch it break again, locally.</p>
+      <div class="cta"><a class="btn" href="#start">Add to FastAPI</a><a class="btn ghost" href="/app">See your activity</a></div>
+      <p class="install">$ <b>pip install -e reprolog</b> · no dependencies · SQLite</p>
+    </div>
+    <div class="demo" aria-label="Example of the reprolog viewer">
+      <div class="bar"><span></span><span></span><span></span></div>
+      <div class="req"><span class="st">200</span><span class="m">GET</span><span class="p">/products?q=bearing</span><span class="d">84ms</span></div>
+      <div class="req bad"><span class="st">500</span><span class="m">POST</span><span class="p">/cart/count</span><span class="d">412ms</span></div>
+      <div class="req"><span class="st">200</span><span class="m">POST</span><span class="p">/chat/complete</span><span class="d">1.9s</span></div>
+      <div class="wf">
+        <div>POST /cart/count<i style="width:100%"></i></div>
+        <div>SELECT carts<i style="width:22%;margin-left:4%;background:#8a63c9"></i></div>
+        <div>es.search<i style="width:48%;margin-left:30%;background:var(--err)"></i></div>
+      </div>
+      <div class="verdict">✓ Reproduced: the same error happened again · 500 → 500</div>
+    </div>
+  </div>
+
+  <section id="features">
+    <h2>Debug from the actual request</h2>
+    <p class="sec-sub">No more guessing from a stack trace. Everything around the failure is saved next to it.</p>
+    <div class="feats">
+      <div class="feat"><div class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div><h3>Live activity</h3><p>Requests stream in as they happen. Filter by status, path or duration and spot the slow ones.</p></div>
+      <div class="feat"><div class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M3 6h18M3 12h12M3 18h7"/></svg></div><h3>Spans and logs together</h3><p>Logfire and OpenTelemetry spans as a waterfall, with each log line attached where it was written.</p></div>
+      <div class="feat"><div class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg></div><h3>One-click replay</h3><p>Re-run the exact request in-process, with outbound HTTP and LLM calls served from the recording.</p></div>
+      <div class="feat"><div class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M4 4h16v16H4zM4 10h16"/></svg></div><h3>Outbound calls</h3><p>httpx and requests calls, including OpenAI, Anthropic, Gemini and Groq, with bodies and token usage.</p></div>
+      <div class="feat"><div class="ic"><svg class="i" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div><h3>Private by default</h3><p>Secrets are redacted, data stays in a local SQLite file, and the folder keeps itself out of git.</p></div>
+      <div class="feat"><div class="ic"><svg class="i" viewBox="0 0 24 24"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m10.7 12.3 9.8-9.8M16 7l3 3"/></svg></div><h3>Read &amp; write tokens</h3><p>Hand a read token to a dashboard or a write token to CI to trigger replays through the API.</p></div>
+    </div>
+  </section>
+
+  <section id="start">
+    <h2>Add it to FastAPI in four steps</h2>
+    <p class="sec-sub">Opt-in with one environment variable, so production never runs it by accident.</p>
+    <div class="start">
+      <div class="tabs" role="tablist" id="tabs"></div>
+      <div>
+        <div class="code"><div class="top"><span id="fname"></span><button id="copy" type="button">Copy</button></div><pre id="snippet"></pre></div>
+        <p class="note" id="note"></p>
+      </div>
+    </div>
+  </section>
+
+  <div class="final">
+    <h2>Your next bug is already recorded.</h2>
+    <p class="sec-sub" style="margin:0 auto 24px">Open the app to see live activity, or create a token for your team.</p>
+    <div class="cta"><a class="btn" href="/app">Open app</a><a class="btn ghost" href="/app#tokens">Create a token</a></div>
+  </div>
+</main>
+
+<footer><div class="wrap"><span>reprolog · capture, inspect, replay</span><span>Runs on 127.0.0.1 · your data never leaves this machine</span></div></footer>
+
+<script>
+const esc=s=>s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const hl=(s,lang)=>{s=esc(s);
+  if(lang==="py")return s.replace(/(#.*)$/gm,'<span class="c">$1</span>').replace(/(&quot;|")(.*?)\1/g,'<span class="s">"$2"</span>').replace(/\b(import|from|if|app)\b/g,'<span class="k">$1</span>');
+  return s.replace(/(#.*)$/gm,'<span class="c">$1</span>').replace(/^(\w[\w-]*)/gm,'<span class="k">$1</span>')};
+const STEPS=[
+  {t:"Install",d:"Into your app's environment",f:"terminal",lang:"sh",code:"pip install -e ~/Desktop/projects/personal/reprolog\n# or: uv pip install -e ~/Desktop/projects/personal/reprolog",
+   n:"No extra dependencies. If you use Logfire, spans are picked up automatically."},
+  {t:"Hook it in",d:"Right after app = FastAPI()",f:"main.py",lang:"py",code:'import os\nfrom fastapi import FastAPI\n\napp = FastAPI()\n\nif os.getenv("REPROLOG_ENABLED") == "1":   # opt-in, local only\n    import reprolog\n    reprolog.init(app)\n\n# ...your other app.add_middleware(...) calls go after this',
+   n:"Add it before other middleware so it is innermost and sees decrypted bodies and stripped paths, the way your routes do."},
+  {t:"Run with capture on",d:"Failures only, or everything",f:"terminal",lang:"sh",code:"REPROLOG_ENABLED=1 REPROLOG_CAPTURE_ALL=1 uvicorn main:app --reload --port 8000",
+   n:"Drop REPROLOG_CAPTURE_ALL to save only failures (5xx, exceptions, logged errors). REPROLOG_MIN_STATUS=400 adds 4xx."},
+  {t:"Open the app",d:"Activity, replay, tokens",f:"terminal",lang:"sh",code:"reprolog ui --app main:app\n# open http://127.0.0.1:7999/app",
+   n:"Run it from the same folder as your app so Replay can import it."},
+];
+let cur=0;
+function render(){
+  document.getElementById("tabs").innerHTML=STEPS.map((s,i)=>`<button role="tab" aria-selected="${i===cur}" data-i="${i}"><span class="n">${i+1}</span><span><b>${s.t}</b><small>${s.d}</small></span></button>`).join("");
+  const s=STEPS[cur];
+  document.getElementById("fname").textContent=s.f;
+  document.getElementById("snippet").innerHTML=hl(s.code,s.lang);
+  document.getElementById("note").textContent=s.n;
+}
+document.getElementById("tabs").onclick=e=>{const b=e.target.closest("[data-i]");if(b){cur=+b.dataset.i;render()}};
+document.getElementById("copy").onclick=e=>navigator.clipboard.writeText(STEPS[cur].code).then(()=>{e.target.textContent="Copied";setTimeout(()=>e.target.textContent="Copy",1200)});
+render();
+</script>
+</body>
+</html>

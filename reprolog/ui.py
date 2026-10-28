@@ -20,7 +20,16 @@ from urllib.parse import parse_qs, urlparse
 from . import storage
 from .export import to_curl
 
-PAGE = (Path(__file__).with_name("viewer.html")).read_text(encoding="utf-8")
+_HERE = Path(__file__).parent
+PAGES = {
+    "/": "site.html",           # landing page
+    "/app": "app.html",         # app shell: sidebar with Activity, Tokens, Setup
+    "/app/activity": "viewer.html",
+}
+
+
+def _page(name: str) -> str:
+    return (_HERE / name).read_text(encoding="utf-8")  # read per request so edits show on reload
 
 SETTINGS = {"app_path": "main:app", "db": None, "cwd": os.getcwd()}
 
@@ -83,8 +92,12 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(403, json.dumps({"error": "open the viewer at http://127.0.0.1"}))
         url = urlparse(self.path)
         query = parse_qs(url.query)
-        if url.path == "/":
-            return self._send(200, PAGE, "text/html")
+        if url.path.rstrip("/") in PAGES or url.path == "/":
+            return self._send(200, _page(PAGES[url.path.rstrip("/") or "/"]), "text/html")
+        if url.path.startswith("/api/") and not self._authorized("read"):
+            return self._send(401, json.dumps({"error": "invalid token"}))
+        if url.path == "/api/tokens":
+            return self._send(200, json.dumps(storage.list_tokens()))
         if url.path == "/api/info":
             return self._send(200, json.dumps({"app": SETTINGS["app_path"], "db": SETTINGS["db"],
                                                "cwd": SETTINGS["cwd"], "count": storage.count()}))
@@ -104,8 +117,21 @@ class Handler(BaseHTTPRequestHandler):
             return self._stream(int(query.get("after", ["0"])[0]))
         return self._send(404, json.dumps({"error": "not found"}))
 
+    def _bearer(self) -> str | None:
+        auth = self.headers.get("Authorization") or ""
+        return auth[7:].strip() if auth.lower().startswith("bearer ") else None
+
+    def _authorized(self, need: str) -> bool:
+        """No token: the local browser (POSTs also need the X-Reprolog header).
+        With `Authorization: Bearer rpl_...`: read tokens may GET, write tokens may also POST."""
+        token = self._bearer()
+        if token is None:
+            return need == "read" or self.headers.get("X-Reprolog") == "1"
+        scope = storage.check_token(token)
+        return scope == "write" or (scope == "read" and need == "read")
+
     def do_POST(self):
-        if not self._host_ok() or self.headers.get("X-Reprolog") != "1":
+        if not self._host_ok() or not self._authorized("write"):
             return self._send(403, json.dumps({"error": "forbidden"}))
         url = urlparse(self.path)
         length = int(self.headers.get("Content-Length") or 0)
@@ -113,6 +139,18 @@ class Handler(BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(length) or b"{}")
         except ValueError:
             body = {}
+        if url.path.startswith("/api/tokens"):
+            if self._bearer() is not None:  # tokens can't mint or revoke tokens
+                return self._send(403, json.dumps({"error": "manage tokens from the app"}))
+            if url.path == "/api/tokens":
+                try:
+                    tok = storage.create_token(str(body.get("name") or ""), str(body.get("scope") or "read"))
+                except ValueError as err:
+                    return self._send(400, json.dumps({"error": str(err)}))
+                return self._send(200, json.dumps(tok))
+            if url.path.endswith("/revoke"):
+                ok = storage.revoke_token(url.path.split("/")[-2])
+                return self._send(200 if ok else 404, json.dumps({"revoked": ok}))
         if url.path.startswith("/api/replay/"):
             cid = url.path.rsplit("/", 1)[-1]
             headers = [h for h in (body.get("headers") or []) if isinstance(h, str) and ":" in h]
@@ -147,7 +185,7 @@ def serve(port: int = 7999, app_path: str = "main:app", db: str | None = None, o
     server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     server.daemon_threads = True
     url = f"http://127.0.0.1:{port}"
-    print(f"reprolog viewer at {url}")
+    print(f"reprolog at {url}  (app: {url}/app)")
     print(f"  reading {SETTINGS['db']}")
     print(f"  Replay button runs: reprolog replay <id> --app {app_path}  (in {SETTINGS['cwd']})")
     print("  Ctrl+C to stop")

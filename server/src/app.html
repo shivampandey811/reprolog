@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>reprolog app</title>
+<style>
+:root{
+  --bg:#f3f1ec;--panel:#fbfaf7;--card:#ffffff;--sunk:#ece9e2;--fg:#1d1f1c;--muted:#5f625b;--faint:#92948c;--line:#e2ded4;
+  --accent:#0d8a7a;--accent-ink:#fff;--accent-soft:#d9efe9;--err:#d4553a;--err-soft:#f9e1da;--warn:#b7791f;--warn-soft:#f6ebd3;
+  --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;--sans:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;--r:12px;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#121412;--panel:#181b19;--card:#1d211e;--sunk:#252a26;--fg:#e8eae4;--muted:#a3a89e;--faint:#737a70;--line:#2a2f2b;
+  --accent:#3cc7b0;--accent-ink:#0b1f1b;--accent-soft:#163631;--err:#ff7f62;--err-soft:#3a1f19;--warn:#e7b04f;--warn-soft:#352a16;color-scheme:dark}}
+*{box-sizing:border-box}[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;font:13.5px/1.5 var(--sans);background:var(--bg);color:var(--fg);display:grid;grid-template-columns:232px minmax(0,1fr);overflow:hidden}
+button,input,select{font:inherit;color:inherit}button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+a{color:var(--accent)}
+code,pre{font-family:var(--mono);font-size:12.5px}
+.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+nav{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:16px 12px;gap:4px;min-height:0}
+.brand{display:flex;align-items:baseline;font:800 18px var(--sans);letter-spacing:-.02em;padding:4px 10px 14px;text-decoration:none;color:var(--fg)}
+.brand i{font-style:normal;color:var(--accent)}
+.grp{font:600 10.5px var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--faint);padding:14px 10px 4px}
+.nl{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:8px;color:var(--muted);text-decoration:none;font-weight:500}
+.nl:hover{background:var(--sunk);color:var(--fg)}
+.nl[aria-current=page]{background:var(--accent-soft);color:var(--fg)}
+.nl[aria-current=page] .i{color:var(--accent)}
+.nl .badge{margin-left:auto;font:600 11px var(--mono);color:var(--faint)}
+.proj{display:flex;align-items:center;gap:8px;margin:0 2px 6px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--card)}
+.proj select{flex:1;min-width:0;border:0;background:none;font-weight:600;padding:0}
+.proj small{color:var(--faint);font:600 10px var(--sans);letter-spacing:.08em;text-transform:uppercase}
+.navfoot a{color:var(--muted);font-size:12px}
+.navfoot{margin-top:auto;border-top:1px solid var(--line);padding:12px 10px 0;font-size:12px;color:var(--faint);display:grid;gap:2px}
+.navfoot b{color:var(--muted);font-weight:600;font-family:var(--mono);font-size:11.5px;word-break:break-all}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent);margin-right:6px}
+
+main{min-width:0;min-height:0;display:flex;flex-direction:column}
+iframe{border:0;flex:1;width:100%;background:var(--bg)}
+.page{overflow:auto;padding:28px 32px 48px;flex:1}
+.page>div{max-width:860px}
+h1{font:750 22px var(--sans);letter-spacing:-.02em;margin:0 0 4px}
+.sub{color:var(--muted);margin:0 0 24px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;margin-bottom:16px}
+.card h2{font:650 14px var(--sans);margin:0 0 12px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
+input[type=text]{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-width:240px}
+.seg{display:inline-flex;background:var(--sunk);border-radius:8px;padding:3px}
+.seg button{border:0;background:none;padding:5px 12px;border-radius:6px;color:var(--muted)}
+.seg button[aria-pressed=true]{background:var(--card);color:var(--fg);box-shadow:0 1px 2px #0002}
+.btn{border:0;background:var(--accent);color:var(--accent-ink);font-weight:600;padding:8px 14px;border-radius:8px}
+.btn.ghost{background:none;color:var(--muted);border:1px solid var(--line)}
+.btn.danger{background:none;color:var(--err);border:1px solid var(--line);padding:5px 10px;font-size:12px}
+.reveal{background:var(--warn-soft);border-radius:10px;padding:14px 16px;margin-top:14px}
+.reveal p{margin:0 0 8px;font-size:12.5px}
+.tokrow{display:flex;gap:8px;align-items:center}
+.tokrow code{flex:1;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 10px;word-break:break-all}
+table{width:100%;border-collapse:collapse}
+th{font:600 11px var(--sans);text-transform:uppercase;letter-spacing:.06em;color:var(--faint);text-align:left;padding:0 10px 8px}
+td{padding:10px;border-top:1px solid var(--line);vertical-align:middle}
+.pill{font:600 11px var(--mono);padding:2px 8px;border-radius:99px;background:var(--sunk);color:var(--muted)}
+.pill.write{background:var(--warn-soft);color:var(--warn)}
+.empty{color:var(--faint);padding:14px 0 4px}
+pre{background:var(--sunk);border-radius:10px;padding:12px 14px;overflow:auto;margin:8px 0 0}
+.kv{display:grid;grid-template-columns:140px 1fr;gap:8px 16px}
+.kv dt{color:var(--muted)}.kv dd{margin:0;font-family:var(--mono);font-size:12.5px;word-break:break-all}
+.steps{counter-reset:s;list-style:none;padding:0;margin:0}
+.steps li{counter-increment:s;position:relative;padding-left:38px;margin-bottom:18px}
+.steps li::before{content:counter(s);position:absolute;left:0;top:0;width:26px;height:26px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font:700 12.5px var(--sans);display:grid;place-items:center}
+.steps b{display:block;margin-bottom:2px}
+.mtoggle{display:none}
+@media (max-width:760px){
+  body{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+  nav{flex-direction:row;flex-wrap:wrap;padding:8px 16px;border-right:0;border-bottom:1px solid var(--line);gap:2px}
+  .brand{padding:6px 10px 6px 0}.grp,.proj{display:flex;align-items:center;gap:8px;margin:0 2px 6px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--card)}
+.proj select{flex:1;min-width:0;border:0;background:none;font-weight:600;padding:0}
+.proj small{color:var(--faint);font:600 10px var(--sans);letter-spacing:.08em;text-transform:uppercase}
+.navfoot a{color:var(--muted);font-size:12px}
+.navfoot{display:none}
+  .page{padding:20px 16px 40px}input[type=text]{min-width:0;width:100%}.kv{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-act" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m10.7 12.3 9.8-9.8M16 7l3 3M19 4l2 2"/></symbol>
+  <symbol id="i-plug" viewBox="0 0 24 24"><path d="M9 2v6M15 2v6M6 8h12v4a6 6 0 0 1-12 0zM12 18v4"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></symbol>
+</svg>
+
+<nav aria-label="Main">
+  <a class="brand" href="/">repro<i>log</i></a>
+  <label class="proj"><small>Project</small><select id="projsel" aria-label="Switch project"></select></label>
+  <div class="grp">Monitor</div>
+  <a class="nl" href="#activity" data-v="activity"><svg class="i"><use href="#i-act"/></svg>Activity<span class="badge" id="count"></span></a>
+  <div class="grp">Project</div>
+  <a class="nl" href="#setup" data-v="setup"><svg class="i"><use href="#i-plug"/></svg>Setup</a>
+  <a class="nl" href="#tokens" data-v="tokens"><svg class="i"><use href="#i-key"/></svg>API tokens</a>
+  <a class="nl" href="#settings" data-v="settings"><svg class="i"><use href="#i-gear"/></svg>Settings</a>
+  <a class="nl" href="/"><svg class="i"><use href="#i-home"/></svg>Website</a>
+  <div class="navfoot"><span><span class="dot"></span>Signed in</span><b id="who">…</b><a href="/auth/logout">Log out</a></div>
+</nav>
+
+<main>
+  <iframe id="v-activity" title="Activity" hidden></iframe>
+
+  <section class="page" id="v-tokens" hidden><div>
+    <h1>API tokens</h1>
+    <p class="sub">Put a <b>write</b> token in your app so it can send logs here. A <b>read</b> token lets scripts and CI read logs through the API. A token works for all your projects unless you lock it to one.</p>
+    <div class="card">
+      <h2>Create a token</h2>
+      <form class="row" id="tform">
+        <label>Name<input type="text" id="tname" placeholder="e.g. CI smoke test" maxlength="80" required></label>
+        <label>Access
+          <span class="seg" id="tscope" role="group" aria-label="Access">
+            <button type="button" data-s="read" aria-pressed="true">Read</button>
+            <button type="button" data-s="write" aria-pressed="false">Read &amp; write</button>
+          </span>
+        </label>
+        <label>Project<select id="tproj" style="background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px"><option value="">All projects</option></select></label>
+        <button class="btn" type="submit">Create token</button>
+      </form>
+      <p class="sub" style="margin:10px 0 0;font-size:12.5px" id="scopehelp"></p>
+      <div class="reveal" id="reveal" hidden>
+        <p><b>Copy this token now.</b> You won't be able to see it again.</p>
+        <div class="tokrow"><code id="newtok"></code><button class="btn ghost" id="copytok" type="button"><svg class="i"><use href="#i-copy"/></svg></button></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Active tokens</h2>
+      <table><thead><tr><th>Name</th><th>Access</th><th>Project</th><th>Token</th><th>Created</th><th>Last used</th><th></th></tr></thead><tbody id="tlist"></tbody></table>
+      <div class="empty" id="tempty" hidden>No tokens yet.</div>
+    </div>
+    <div class="card">
+      <h2>Try it</h2>
+      <pre id="trycurl"></pre>
+    </div>
+  </div></section>
+
+  <section class="page" id="v-setup" hidden><div>
+    <h1>Add reprolog to your FastAPI app</h1>
+    <p class="sub">Your app sends failed requests here in the background. Secrets are redacted before they leave your server.</p>
+    <div class="card"><ol class="steps" id="steps"></ol></div>
+  </div></section>
+
+  <section class="page" id="v-settings" hidden><div>
+    <h1>Settings</h1>
+    <p class="sub">Free plan: 10 projects, 2,000 logs a day, logs kept 10 days.</p>
+    <div class="card"><h2>Account</h2><dl class="kv" id="info"></dl></div>
+    <div class="card"><h2>Capture options</h2><dl class="kv">
+      <dt>REPROLOG_ENABLED</dt><dd>1 turns capture on</dd>
+      <dt>REPROLOG_CAPTURE_ALL</dt><dd>1 saves every request, not only failures</dd>
+      <dt>REPROLOG_MIN_STATUS</dt><dd>lowest status saved (default 500; 400 adds 4xx)</dd>
+      <dt>REPROLOG_KEEP_AUTH</dt><dd>1 keeps auth headers locally so replays authenticate</dd>
+      <dt>REPROLOG_TOKEN</dt><dd>write token; logs are also sent here</dd>
+      <dt>REPROLOG_PROJECT</dt><dd>project name, e.g. dev or prod</dd>
+      <dt>REPROLOG_ENDPOINT</dt><dd>address of this site</dd>
+    </dl></div>
+  </div></section>
+</main>
+
+<script>
+const $=s=>document.querySelector(s), esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const api=(p,o={})=>fetch(p,{...o,headers:{"X-Reprolog":"1","Content-Type":"application/json",...(o.headers||{})}}).then(r=>r.json());
+const ago=t=>{if(!t)return"Never";const s=Date.now()/1e3-t;return s<60?"Just now":s<3600?Math.floor(s/60)+"m ago":s<86400?Math.floor(s/3600)+"h ago":new Date(t*1e3).toLocaleDateString()};
+let PROJ=[];
+const VIEWS=["activity","setup","tokens","settings"];
+
+function show(){
+  const v=VIEWS.includes(location.hash.slice(1))?location.hash.slice(1):"activity";
+  for(const x of VIEWS)$("#v-"+x).hidden=x!==v;
+  document.querySelectorAll(".nl[data-v]").forEach(a=>a.dataset.v===v?a.setAttribute("aria-current","page"):a.removeAttribute("aria-current"));
+  if(v==="activity"&&!$("#v-activity").src)$("#v-activity").src="/app/activity";
+  if(v==="tokens")loadTokens();
+  document.title={activity:"Activity",setup:"Setup",tokens:"API tokens",settings:"Settings"}[v]+" · reprolog";
+}
+addEventListener("hashchange",show);
+
+let scope="read";
+const HELP={read:"Read: list and open logs through the API (GET /api/captures?project=prod).",
+            write:"Write: your app sends logs with it (REPROLOG_TOKEN). Keep it secret, like a password."};
+$("#tscope").onclick=e=>{const b=e.target.closest("button");if(!b)return;scope=b.dataset.s;
+  $("#tscope").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));$("#scopehelp").textContent=HELP[scope];tryCurl()};
+$("#scopehelp").textContent=HELP.read;
+$("#tform").onsubmit=async e=>{e.preventDefault();
+  const t=await api("/api/tokens",{method:"POST",body:JSON.stringify({name:$("#tname").value,scope,project_id:$("#tproj").value||null})});
+  if(t.error)return alert(t.error);
+  $("#newtok").textContent=t.token;$("#reveal").hidden=false;$("#tname").value="";tryCurl(t.token);loadTokens()};
+$("#copytok").onclick=()=>navigator.clipboard.writeText($("#newtok").textContent).then(()=>{$("#copytok").textContent="Copied"});
+
+async function loadTokens(){
+  const rows=await api("/api/tokens");
+  $("#tempty").hidden=rows.length>0;
+  $("#tlist").innerHTML=rows.map(r=>`<tr><td>${esc(r.name)}</td><td><span class="pill ${r.scope}">${r.scope==="write"?"read & write":"read"}</span></td>
+    <td>${esc(r.project||"All")}</td><td><code>${esc(r.prefix)}…</code></td><td>${ago(r.created_at)}</td><td>${ago(r.last_used_at)}</td>
+    <td style="text-align:right"><button class="btn danger" data-id="${esc(r.id)}" data-name="${esc(r.name)}">Revoke</button></td></tr>`).join("");
+}
+$("#tlist").onclick=async e=>{const b=e.target.closest("[data-id]");if(!b)return;
+  if(!confirm(`Revoke "${b.dataset.name}"? Anything using it stops working.`))return;
+  await api(`/api/tokens/${b.dataset.id}/revoke`,{method:"POST"});loadTokens()};
+function tryCurl(tok){
+  const t=tok||"<your token>", p=(PROJ.find(x=>x.id===$("#tproj").value)||{}).name||"prod";
+  $("#trycurl").textContent=scope==="write"
+    ?`# in your app's environment\nREPROLOG_ENABLED=1\nREPROLOG_TOKEN=${t}\nREPROLOG_PROJECT=${p}\nREPROLOG_ENDPOINT=${location.origin}`
+    :`curl -H "Authorization: Bearer ${t}" \\\n  "${location.origin}/api/captures?project=${p}&limit=20"`;
+}
+tryCurl();
+
+const STEPS=[
+  ["Install the library","Into your app's environment.",`pip install reprolog`],
+  ["Hook it in after app = FastAPI()","Before any other add_middleware call, so it sees requests the way your routes do.",
+`import os
+from fastapi import FastAPI
+
+app = FastAPI()
+
+if os.getenv("REPROLOG_ENABLED") == "1":
+    import reprolog
+    reprolog.init(app)`],
+  ["Create a write token","Under API tokens. Lock it to one project if you like.",`# shown once, e.g. rpl_w_...`],
+  ["Set four environment variables","REPROLOG_PROJECT is any name: dev, prod, staging. A new name creates the project.",
+`REPROLOG_ENABLED=1
+REPROLOG_TOKEN=rpl_w_...
+REPROLOG_PROJECT=prod
+REPROLOG_ENDPOINT=${location.origin}`],
+  ["Run your app","Failures show up under Activity within a few seconds. Logs are kept for 10 days.",`uvicorn main:app`],
+];
+$("#steps").innerHTML=STEPS.map(([t,d,c])=>`<li><b>${esc(t)}</b><span class="sub" style="margin:0">${esc(d)}</span><pre>${esc(c)}</pre></li>`).join("");
+
+async function loadProjects(){
+  PROJ=await api("/api/projects");
+  const info=await api("/api/info");
+  $("#projsel").innerHTML=PROJ.map(p=>`<option value="${esc(p.id)}" ${p.name===info.app?"selected":""}>${esc(p.name)}</option>`).join("")||'<option value="">No projects yet</option>';
+  $("#tproj").innerHTML='<option value="">All projects</option>'+PROJ.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join("");
+  $("#count").textContent=info.count||"";
+}
+$("#projsel").onchange=async e=>{
+  if(!e.target.value)return;
+  await api(`/api/projects/${e.target.value}/select`,{method:"POST"});
+  await loadProjects();
+  const f=$("#v-activity"); if(f.src)f.src="/app/activity";
+};
+$("#tproj").onchange=()=>tryCurl();
+api("/api/me").then(u=>{$("#who").textContent=u.email;
+  $("#info").innerHTML=[["Name",u.name],["Email",u.email]].map(([k,v])=>`<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")});
+loadProjects();
+show();
+</script>
+</body>
+</html>

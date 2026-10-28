@@ -101,6 +101,41 @@ class ReprologSpanProcessor(_Base):
         return True
 
 
+_PROCESSOR = ReprologSpanProcessor()
+
+
+def _attach(candidate) -> bool:
+    add = getattr(candidate, "add_span_processor", None)
+    if not callable(add):
+        return False
+    try:
+        add(_PROCESSOR)
+        return True
+    except Exception:
+        return False
+
+
+def _follow_swaps(proxy) -> bool:
+    """Logfire's ProxyTracerProvider swaps in a fresh SDK provider on every
+    logfire.configure() call, dropping processors added to the old one. Apps
+    often configure again after reprolog.init(), so re-attach on each swap."""
+    set_provider = getattr(proxy, "set_provider", None)
+    if not callable(set_provider) or getattr(set_provider, "_reprolog", False):
+        return callable(set_provider)
+
+    def wrapped(provider, *args, **kwargs):
+        result = set_provider(provider, *args, **kwargs)
+        _attach(provider)
+        return result
+
+    wrapped._reprolog = True
+    try:
+        proxy.set_provider = wrapped
+    except Exception:
+        return False
+    return True
+
+
 def install() -> bool:
     """Attach the processor to the active tracer provider (Logfire sets one up)."""
     try:
@@ -108,12 +143,8 @@ def install() -> bool:
     except Exception:
         return False
     provider = trace.get_tracer_provider()
-    for candidate in (provider, getattr(provider, "provider", None), getattr(provider, "_tracer_provider", None)):
-        add = getattr(candidate, "add_span_processor", None)
-        if callable(add):
-            try:
-                add(ReprologSpanProcessor())
-                return True
-            except Exception:
-                continue
-    return False
+    follows = _follow_swaps(provider)
+    for candidate in (getattr(provider, "provider", None), getattr(provider, "_tracer_provider", None), provider):
+        if _attach(candidate):
+            return True
+    return follows

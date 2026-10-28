@@ -58,6 +58,10 @@ class Config:
     # Read streamed outbound responses (e.g. LLM streaming) fully so they can be
     # replayed. Off by default because it turns streaming into a single response.
     capture_streaming_bodies: bool = field(default_factory=lambda: _env_bool("REPROLOG_CAPTURE_STREAMS", False))
+    # Hosted dashboard: with a write token, saved captures are also sent there in the background.
+    token: str = field(default_factory=lambda: os.getenv("REPROLOG_TOKEN", ""))
+    project: str = field(default_factory=lambda: os.getenv("REPROLOG_PROJECT", "default"))
+    endpoint: str = field(default_factory=lambda: os.getenv("REPROLOG_ENDPOINT", ""))
     # Hosts tagged as LLM calls in the viewer.
     llm_hosts: tuple = (
         "api.openai.com",

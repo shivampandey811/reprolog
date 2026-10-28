@@ -91,7 +91,12 @@ def save(record: dict) -> None:
 
 _saves = 0
 
-LIST_COLUMNS = "id, created_at, method, path, status, duration_ms, error_type, error_message, replay_of"
+LIST_COLUMNS = (
+    "id, created_at, method, path, status, duration_ms, error_type, error_message, replay_of, "
+    "json_extract(data, '$.request.query_string') AS query, "
+    "json_array_length(json_extract(data, '$.spans')) AS span_count, "
+    "json_array_length(json_extract(data, '$.logs')) AS log_count"
+)
 
 
 def list_since(after_seq: int, limit: int = 200) -> list:
@@ -140,3 +145,72 @@ def clear() -> int:
 def count() -> int:
     with _lock:
         return _connect().execute("SELECT COUNT(*) FROM captures").fetchone()[0]
+
+
+# API tokens. Only a hash is stored; the plain token is shown once at creation.
+TOKEN_SCHEMA = """
+CREATE TABLE IF NOT EXISTS tokens (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    scope TEXT NOT NULL,
+    prefix TEXT NOT NULL,
+    hash TEXT NOT NULL UNIQUE,
+    created_at REAL NOT NULL,
+    last_used_at REAL
+);
+"""
+SCOPES = ("read", "write")
+
+
+def _hash(token: str) -> str:
+    import hashlib
+
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def create_token(name: str, scope: str) -> dict:
+    import secrets
+
+    if scope not in SCOPES:
+        raise ValueError("scope must be 'read' or 'write'")
+    token = f"rpl_{scope[0]}_{secrets.token_urlsafe(24)}"
+    row = {"id": secrets.token_hex(6), "name": name.strip()[:80] or "Untitled", "scope": scope,
+           "prefix": token[:10], "created_at": time.time(), "last_used_at": None}
+    with _lock:
+        conn = _connect()
+        conn.executescript(TOKEN_SCHEMA)
+        conn.execute("INSERT INTO tokens (id, name, scope, prefix, hash, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                     (row["id"], row["name"], scope, row["prefix"], _hash(token), row["created_at"]))
+        conn.commit()
+    return {**row, "token": token}
+
+
+def list_tokens() -> list:
+    with _lock:
+        conn = _connect()
+        conn.executescript(TOKEN_SCHEMA)
+        rows = conn.execute("SELECT id, name, scope, prefix, created_at, last_used_at FROM tokens"
+                            " ORDER BY created_at DESC").fetchall()
+    return [dict(r) for r in rows]
+
+
+def revoke_token(token_id: str) -> bool:
+    with _lock:
+        conn = _connect()
+        conn.executescript(TOKEN_SCHEMA)
+        gone = conn.execute("DELETE FROM tokens WHERE id = ?", (token_id,)).rowcount
+        conn.commit()
+    return bool(gone)
+
+
+def check_token(token: str) -> Optional[str]:
+    """Scope of a valid token ('read' or 'write'), else None."""
+    with _lock:
+        conn = _connect()
+        conn.executescript(TOKEN_SCHEMA)
+        row = conn.execute("SELECT id, scope FROM tokens WHERE hash = ?", (_hash(token),)).fetchone()
+        if row is None:
+            return None
+        conn.execute("UPDATE tokens SET last_used_at = ? WHERE id = ?", (time.time(), row["id"]))
+        conn.commit()
+    return row["scope"]
