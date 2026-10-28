@@ -21,6 +21,8 @@ MAX_PROJECTS = "10"
 
 # Secrets (wrangler secret put ...; locally in .dev.vars):
 #   SESSION_SECRET        random string used to sign login cookies
-#   GITHUB_CLIENT_ID      GitHub OAuth app
-#   GITHUB_CLIENT_SECRET
-#   DEV_LOGIN=1           local only: enables /auth/dev without GitHub
+#   GOOGLE_CLIENT_ID      Google OAuth client ("Continue with Google")
+#   GOOGLE_CLIENT_SECRET
+#   SMTP_USER             Gmail address that sends sign-in codes
+#   SMTP_PASS             its Google app password (needs 2-step verification)
+#   DEV_LOGIN=1           local only: enables /auth/dev and shows email codes on screen

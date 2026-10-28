@@ -396,7 +396,9 @@ function renderFeed(rows, newIds = new Set()) {
   $("#count").textContent = `${rows.length} shown`;
   if (!rows.length) {
     $("#feed").innerHTML = S.rows.length ? '<div class="empty">Nothing matches. Remove a filter or widen the time range.</div>' :
-      `<div class="empty">Waiting for requests.<br>Start your app with <code>REPROLOG_ENABLED=1</code><br>and <code>REPROLOG_CAPTURE_ALL=1</code> to see every request.</div>`;
+      (S.info && S.info.hosted
+        ? `<div class="empty">No logs in this project yet.<br>Open <b>Setup</b> in the sidebar to connect your app with a write token.</div>`
+        : `<div class="empty">Waiting for requests.<br>Start your app with <code>REPROLOG_ENABLED=1</code><br>and <code>REPROLOG_CAPTURE_ALL=1</code> to see every request.</div>`);
     return;
   }
   const slowCut = Math.max(500, pct(rows.map(r => r.duration_ms || 0), .9) || 0);

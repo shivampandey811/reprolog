@@ -64,3 +64,13 @@ CREATE TABLE IF NOT EXISTS usage_daily (
     captures INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (user_id, day)
 );
+
+-- One-time sign-in codes sent by email. Only a hash of the code is stored.
+CREATE TABLE IF NOT EXISTS login_codes (
+    email TEXT NOT NULL,
+    code_hash TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_login_codes_email ON login_codes(email, created_at);

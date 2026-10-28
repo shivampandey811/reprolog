@@ -1,7 +1,8 @@
 // Hosted reprolog on Cloudflare Workers + D1.
 //
 //   /                 landing page            /app              dashboard (login required)
-//   /auth/github      GitHub login            /app/activity     the library's viewer, per project
+//   /auth/google      Google login            /app/activity     the library's viewer, per project
+//   /auth/email/*     sign in with a 6-digit code sent by email (Gmail SMTP)
 //   /v1/ingest        POST logs with a write token (Authorization: Bearer rpl_w_...)
 //   /api/*            dashboard API (session cookie) or read API (Bearer token)
 //
@@ -11,6 +12,7 @@ import SITE from "../../reprolog/site.html";
 import VIEWER from "../../reprolog/viewer.html";
 import APP from "./app.html";
 import LOGIN from "./login.html";
+import { sendMail } from "./mail.js";
 
 const SESSION_COOKIE = "rpl_session";
 const PROJECT_COOKIE = "rpl_project";
@@ -46,9 +48,12 @@ async function route(request, env, ctx) {
   const method = request.method;
 
   if (path === "/" && method === "GET") return html(SITE);
-  if (path === "/login") return html(LOGIN);
-  if (path === "/auth/github") return githubStart(request, env);
-  if (path === "/auth/github/callback") return githubCallback(request, env);
+  if (path === "/login") return (await sessionUser(request, env)) ? redirect("/app") : html(LOGIN);
+  if (path === "/auth/google") return googleStart(request, env);
+  if (path === "/auth/google/callback") return googleCallback(request, env);
+  if (path === "/auth/email/start" && method === "POST") return emailStart(request, env);
+  if (path === "/auth/email/verify" && method === "POST") return emailVerify(request, env);
+  if (path === "/auth/config") return json({ google: !!env.GOOGLE_CLIENT_ID, email: true, dev: env.DEV_LOGIN === "1" });
   if (path === "/auth/dev" && env.DEV_LOGIN === "1") return devLogin(request, env);
   if (path === "/auth/logout") return redirect("/", [cookie(SESSION_COOKIE, "", 0)]);
   if (path === "/v1/ingest" && method === "POST") return ingest(request, env);
@@ -67,41 +72,94 @@ async function route(request, env, ctx) {
 
 // ---------------------------------------------------------------- auth
 
-async function githubStart(request, env) {
-  if (!env.GITHUB_CLIENT_ID) throw new HttpError(500, "GitHub login is not configured");
+async function googleStart(request, env) {
+  if (!env.GOOGLE_CLIENT_ID) throw new HttpError(500, "Google login is not configured");
   const state = randomId(16);
-  const url = new URL("https://github.com/login/oauth/authorize");
-  url.searchParams.set("client_id", env.GITHUB_CLIENT_ID);
-  url.searchParams.set("redirect_uri", new URL("/auth/github/callback", request.url).toString());
-  url.searchParams.set("scope", "read:user user:email");
+  const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+  url.searchParams.set("client_id", env.GOOGLE_CLIENT_ID);
+  url.searchParams.set("redirect_uri", new URL("/auth/google/callback", request.url).toString());
+  url.searchParams.set("response_type", "code");
+  url.searchParams.set("scope", "openid email profile");
   url.searchParams.set("state", state);
+  url.searchParams.set("prompt", "select_account");
   return redirect(url.toString(), [cookie("rpl_oauth_state", state, 600)]);
 }
 
-async function githubCallback(request, env) {
+async function googleCallback(request, env) {
   const url = new URL(request.url);
   const state = readCookie(request, "rpl_oauth_state");
-  if (!state || state !== url.searchParams.get("state")) throw new HttpError(400, "login expired, try again");
-  const tokenRes = await fetch("https://github.com/login/oauth/access_token", {
+  if (!state || state !== url.searchParams.get("state")) return redirect("/login?error=expired");
+  const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
-    headers: { Accept: "application/json", "Content-Type": "application/json" },
-    body: JSON.stringify({
-      client_id: env.GITHUB_CLIENT_ID,
-      client_secret: env.GITHUB_CLIENT_SECRET,
-      code: url.searchParams.get("code"),
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      code: url.searchParams.get("code") || "",
+      client_id: env.GOOGLE_CLIENT_ID,
+      client_secret: env.GOOGLE_CLIENT_SECRET,
+      redirect_uri: new URL("/auth/google/callback", request.url).toString(),
+      grant_type: "authorization_code",
     }),
   }).then((r) => r.json());
-  if (!tokenRes.access_token) throw new HttpError(400, "GitHub login failed");
-  const gh = { Authorization: `Bearer ${tokenRes.access_token}`, "User-Agent": "reprolog", Accept: "application/vnd.github+json" };
-  const profile = await fetch("https://api.github.com/user", { headers: gh }).then((r) => r.json());
-  let email = profile.email;
-  if (!email) {
-    const emails = await fetch("https://api.github.com/user/emails", { headers: gh }).then((r) => r.json());
-    email = (Array.isArray(emails) ? emails.find((e) => e.primary && e.verified) : null)?.email;
-  }
-  if (!email) throw new HttpError(400, "your GitHub account has no verified email");
-  const user = await upsertUser(env, email, profile.name || profile.login, "github");
+  if (!tokenRes.access_token) return redirect("/login?error=google");
+  const info = await fetch("https://openidconnect.googleapis.com/v1/userinfo", {
+    headers: { Authorization: `Bearer ${tokenRes.access_token}` },
+  }).then((r) => r.json());
+  if (!info.email || !info.email_verified) return redirect("/login?error=unverified");
+  const user = await upsertUser(env, info.email, info.name, "google");
   return redirect("/app", [cookie("rpl_oauth_state", "", 0), await sessionCookie(env, user.id)]);
+}
+
+// Email sign-in: a 6-digit code, valid 10 minutes, 5 tries. Signing in creates the account.
+const CODE_TTL = 600;
+const CODES_PER_HOUR = 5;
+
+async function emailStart(request, env) {
+  const body = await request.json().catch(() => ({}));
+  const email = String(body.email || "").trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 200) throw new HttpError(400, "enter a valid email address");
+  const recent = await env.DB.prepare("SELECT COUNT(*) AS n FROM login_codes WHERE email = ? AND created_at > ?")
+    .bind(email, now() - 3600).first();
+  if (recent.n >= CODES_PER_HOUR) throw new HttpError(429, "too many codes requested, try again in an hour");
+  const code = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1_000_000).padStart(6, "0");
+  await env.DB.batch([
+    env.DB.prepare("DELETE FROM login_codes WHERE created_at < ?").bind(now() - 86400),
+    env.DB.prepare("INSERT INTO login_codes (email, code_hash, created_at, expires_at) VALUES (?, ?, ?, ?)")
+      .bind(email, await sha256(`${email}:${code}`), now(), now() + CODE_TTL),
+  ]);
+  if (!env.SMTP_USER && env.DEV_LOGIN === "1") {
+    console.log(`[dev] sign-in code for ${email}: ${code}`);  // local testing without Gmail
+    return json({ sent: true, dev_code: code });
+  }
+  if (!env.SMTP_USER) throw new HttpError(503, "email sign-in isn't set up yet");
+  await sendMail(env, {
+    to: email,
+    subject: `${code} is your reprolog sign-in code`,
+    text: `Your reprolog sign-in code is ${code}\n\nIt expires in 10 minutes. If you didn't ask for it, ignore this email.`,
+  }).catch((err) => {
+    console.error("sendMail failed", err);
+    throw new HttpError(502, "couldn't send the email, try again in a minute");
+  });
+  return json({ sent: true });
+}
+
+async function emailVerify(request, env) {
+  const body = await request.json().catch(() => ({}));
+  const email = String(body.email || "").trim().toLowerCase();
+  const code = String(body.code || "").replace(/\D/g, "");
+  const row = await env.DB.prepare(
+    "SELECT rowid, code_hash, expires_at, attempts FROM login_codes WHERE email = ? ORDER BY created_at DESC LIMIT 1",
+  ).bind(email).first();
+  if (!row || row.expires_at < now()) throw new HttpError(400, "code expired, request a new one");
+  if (row.attempts >= 5) throw new HttpError(429, "too many wrong tries, request a new code");
+  if (row.code_hash !== (await sha256(`${email}:${code}`))) {
+    await env.DB.prepare("UPDATE login_codes SET attempts = attempts + 1 WHERE rowid = ?").bind(row.rowid).run();
+    throw new HttpError(400, "wrong code");
+  }
+  await env.DB.prepare("DELETE FROM login_codes WHERE email = ?").bind(email).run();
+  const user = await upsertUser(env, email, body.name || email.split("@")[0], "email");
+  return new Response(JSON.stringify({ ok: true }), {
+    headers: { "Content-Type": "application/json", "Set-Cookie": await sessionCookie(env, user.id) },
+  });
 }
 
 async function devLogin(request, env) {
@@ -359,10 +417,10 @@ async function stream(request, env, url, project, ctx) {
   const pump = async () => {
     try {
       await writer.write(enc.encode("retry: 1000\n\n"));
-      for (let i = 0; i < 9 && project; i++) {
-        const { results } = await env.DB.prepare(
+      for (let i = 0; i < 9; i++) {
+        const { results } = project ? await env.DB.prepare(
           `SELECT rowid AS seq, ${LIST_COLUMNS} FROM captures WHERE project_id = ? AND rowid > ? ORDER BY rowid LIMIT 200`,
-        ).bind(project.id, after).all();
+        ).bind(project.id, after).all() : { results: [] };
         let out = results.length ? "" : ": ping\n\n";
         for (const r of results) {
           after = r.seq;
