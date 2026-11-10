@@ -15,9 +15,9 @@ database_id = "f8ae861e-0daf-4963-8948-6291942a521c"
 crons = ["0 3 * * *"]
 
 [vars]
-RETENTION_DAYS = "10"
-DAILY_CAPTURE_LIMIT = "2000"   # per user, keeps the free 100k writes/day shared fairly
-MAX_PROJECTS = "10"
+RETENTION_DAYS = "7"
+DAILY_CAPTURE_LIMIT = "1700"   # free plan: ~50k logs a month per user
+MAX_PROJECTS = "3"
 
 # Secrets (wrangler secret put ...; locally in .dev.vars):
 #   SESSION_SECRET        random string used to sign login cookies

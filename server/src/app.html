@@ -153,7 +153,7 @@ pre{background:var(--sunk);border-radius:10px;padding:12px 14px;overflow:auto;ma
 
   <section class="page" id="v-settings" hidden><div>
     <h1>Settings</h1>
-    <p class="sub">Free plan: 10 projects, 2,000 logs a day, logs kept 10 days.</p>
+    <p class="sub">Free plan: 50,000 logs a month (about 1,700 a day), logs kept 7 days, 3 projects.</p>
     <div class="card"><h2>Account</h2><dl class="kv" id="info"></dl></div>
     <div class="card"><h2>Capture options</h2><dl class="kv">
       <dt>REPROLOG_ENABLED</dt><dd>1 turns capture on</dd>
@@ -230,7 +230,7 @@ if os.getenv("REPROLOG_ENABLED") == "1":
 `REPROLOG_ENABLED=1
 REPROLOG_TOKEN=rpl_w_...
 REPROLOG_PROJECT=prod`],
-  ["Run your app","Failures show up under Activity within a few seconds. Logs are kept for 10 days.",`uvicorn main:app`],
+  ["Run your app","Failures show up under Activity within a few seconds. Free plan logs are kept for 7 days.",`uvicorn main:app`],
 ];
 $("#steps").innerHTML=STEPS.map(([t,d,c])=>`<li><b>${esc(t)}</b><span class="sub" style="margin:0">${esc(d)}</span><pre>${esc(c)}</pre></li>`).join("");
 

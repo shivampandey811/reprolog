@@ -82,6 +82,22 @@ h2{font:780 30px/1.15 var(--sans);letter-spacing:-.025em;margin:0 0 10px}
 .code .c{color:var(--code-dim)}.code .k{color:var(--code-key)}.code .s{color:var(--code-str)}
 .note{margin-top:14px;color:var(--muted);font-size:14.5px}
 
+.plans{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;max-width:820px}
+.plan{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:26px 24px;display:flex;flex-direction:column}
+.plan.pro{border:2px solid var(--accent);position:relative}
+.plan .tag{position:absolute;top:-12px;left:24px;background:var(--accent);color:var(--accent-ink);font:700 11.5px var(--sans);letter-spacing:.04em;text-transform:uppercase;padding:3px 10px;border-radius:99px}
+.plan h3{font:700 17px var(--sans);margin:0}
+.plan .price{font:800 40px/1 var(--sans);letter-spacing:-.03em;margin:14px 0 4px}
+.plan .price small{font:500 15px var(--sans);color:var(--muted);letter-spacing:0}
+.plan .for{color:var(--muted);font-size:14.5px;margin:0 0 18px}
+.plan ul{list-style:none;padding:0;margin:0 0 24px;display:grid;gap:9px;font-size:14.5px}
+.plan li{display:grid;grid-template-columns:18px 1fr;gap:10px;align-items:start}
+.plan li::before{content:"";width:16px;height:16px;margin-top:3px;border-radius:50%;background:var(--accent-soft) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230d8a7a' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5L20 7'/%3E%3C/svg%3E") center/10px no-repeat}
+.plan li b{font-weight:650}
+.plan .soon{font:600 10.5px var(--sans);color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,transparent);padding:1px 7px;border-radius:99px;margin-left:6px;vertical-align:1px}
+.plan .btn{margin-top:auto;justify-content:center}
+.fine{color:var(--faint);font-size:13.5px;margin:18px 0 0;max-width:820px}
+@media (max-width:860px){.plans{grid-template-columns:1fr}}
 .final{text-align:center;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:52px 24px;margin:0 0 72px}
 .final .cta{justify-content:center}
 footer{border-top:1px solid var(--line);padding:24px 0;color:var(--faint);font-size:13.5px}
@@ -97,7 +113,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 <body>
 <header><div class="wrap">
   <a class="brand" href="/">repro<i>log</i></a>
-  <nav><a href="#features">Features</a><a href="#start">Get started</a><a href="/app#tokens">API tokens</a></nav>
+  <nav><a href="#features">Features</a><a href="#start">Get started</a><a href="#pricing">Pricing</a></nav>
   <a class="btn" href="/app">Dashboard</a>
 </div></header>
 
@@ -132,7 +148,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
       <div class="feat"><div class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M3 6h18M3 12h12M3 18h7"/></svg></div><h3>Spans and logs together</h3><p>Logfire and OpenTelemetry spans as a waterfall, with each log line attached where it was written.</p></div>
       <div class="feat"><div class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg></div><h3>Replay on your laptop</h3><p><code>reprolog replay &lt;id&gt;</code> pulls the log from your dashboard and re-runs the exact request, with HTTP and LLM calls served from the recording.</p></div>
       <div class="feat"><div class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M4 4h16v16H4zM4 10h16"/></svg></div><h3>Outbound calls</h3><p>httpx and requests calls, including OpenAI, Anthropic, Gemini and Groq, with bodies and token usage.</p></div>
-      <div class="feat"><div class="ic"><svg class="i" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div><h3>Private by default</h3><p>Passwords, tokens, cookies and auth headers are redacted inside your app, before anything is sent. Logs are deleted after 10 days.</p></div>
+      <div class="feat"><div class="ic"><svg class="i" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div><h3>Private by default</h3><p>Passwords, tokens, cookies and auth headers are redacted inside your app, before anything is sent. Free logs are deleted after 7 days, Pro after 30.</p></div>
       <div class="feat"><div class="ic"><svg class="i" viewBox="0 0 24 24"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m10.7 12.3 9.8-9.8M16 7l3 3"/></svg></div><h3>Projects &amp; tokens</h3><p>One write token per app, a project per environment: dev, staging, prod. Switch between them in the dashboard.</p></div>
     </div>
   </section>
@@ -149,6 +165,45 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
     </div>
   </section>
 
+  <section id="pricing">
+    <h2>Simple pricing</h2>
+    <p class="sec-sub">Start free. Upgrade when your team relies on it.</p>
+    <div class="plans">
+      <div class="plan">
+        <h3>Free</h3>
+        <div class="price">$0<small> / month</small></div>
+        <p class="for">For side projects and trying it out.</p>
+        <ul>
+          <li><span><b>50,000 logs</b> a month</span></li>
+          <li><span>Logs kept <b>7 days</b></span></li>
+          <li><span>3 projects</span></li>
+          <li><span>Live activity, spans and log lines</span></li>
+          <li><span>Replay on your laptop, copy as curl</span></li>
+          <li><span>Read and write API tokens</span></li>
+        </ul>
+        <a class="btn ghost" href="/login">Start free</a>
+      </div>
+      <div class="plan pro">
+        <span class="tag">Pro</span>
+        <h3>Pro</h3>
+        <div class="price">$29<small> / month</small></div>
+        <p class="for">For production apps and teams.</p>
+        <ul>
+          <li><span><b>20 million logs</b> a month</span></li>
+          <li><span>Logs kept <b>30 days</b></span></li>
+          <li><span>Unlimited projects</span></li>
+          <li><span>Metrics: request rate, error rate, p50/p95 latency per endpoint<span class="soon">soon</span></span></li>
+          <li><span>Email alerts when a new error appears<span class="soon">soon</span></span></li>
+          <li><span>Slack alerts to any channel<span class="soon">soon</span></span></li>
+          <li><span><b>Uptime checks</b>: 10 URLs every minute, alert when one goes down<span class="soon">soon</span></span></li>
+          <li><span>Everything in Free</span></li>
+        </ul>
+        <a class="btn" href="/login">Get Pro</a>
+      </div>
+    </div>
+    <p class="fine">Over 20 million logs in a month? Extra logs are $1 per million, or we pause sending until the next month, your choice. Prices in USD.</p>
+  </section>
+
   <div class="final">
     <h2>Your next bug is already recorded.</h2>
     <p class="sec-sub" style="margin:0 auto 24px">Sign in with your email or Google. No password, no card.</p>
@@ -156,7 +211,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
   </div>
 </main>
 
-<footer><div class="wrap"><span>reprolog · capture, inspect, replay</span><span>Free plan: 10 projects · 2,000 logs a day · kept 10 days</span></div></footer>
+<footer><div class="wrap"><span>reprolog · capture, inspect, replay</span><span>Free plan: 50,000 logs a month · kept 7 days · 3 projects</span></div></footer>
 
 <script>
 const esc=s=>s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
