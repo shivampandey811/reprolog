@@ -82,7 +82,7 @@ h2{font:780 30px/1.15 var(--sans);letter-spacing:-.025em;margin:0 0 10px}
 .code .c{color:var(--code-dim)}.code .k{color:var(--code-key)}.code .s{color:var(--code-str)}
 .note{margin-top:14px;color:var(--muted);font-size:14.5px}
 
-.plans{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;max-width:820px}
+.plans{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
 .plan{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:26px 24px;display:flex;flex-direction:column}
 .plan.pro{border:2px solid var(--accent);position:relative}
 .plan .tag{position:absolute;top:-12px;left:24px;background:var(--accent);color:var(--accent-ink);font:700 11.5px var(--sans);letter-spacing:.04em;text-transform:uppercase;padding:3px 10px;border-radius:99px}
@@ -96,7 +96,9 @@ h2{font:780 30px/1.15 var(--sans);letter-spacing:-.025em;margin:0 0 10px}
 .plan li b{font-weight:650}
 .plan .soon{font:600 10.5px var(--sans);color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,transparent);padding:1px 7px;border-radius:99px;margin-left:6px;vertical-align:1px}
 .plan .btn{margin-top:auto;justify-content:center}
-.fine{color:var(--faint);font-size:13.5px;margin:18px 0 0;max-width:820px}
+.fine{color:var(--faint);font-size:13.5px;margin:18px 0 0;max-width:900px}
+.plan .price.sm{font-size:30px}
+@media (max-width:1000px) and (min-width:861px){.plans{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:860px){.plans{grid-template-columns:1fr}}
 .final{text-align:center;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:52px 24px;margin:0 0 72px}
 .final .cta{justify-content:center}
@@ -191,7 +193,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
         <ul>
           <li><span><b>20 million logs</b> a month</span></li>
           <li><span>Logs kept <b>30 days</b></span></li>
-          <li><span>Unlimited projects</span></li>
+          <li><span><b>3 projects</b> included, then <b>+$10 a month</b> for each extra project</span></li>
           <li><span>Metrics: request rate, error rate, p50/p95 latency per endpoint<span class="soon">soon</span></span></li>
           <li><span>Email alerts when a new error appears<span class="soon">soon</span></span></li>
           <li><span>Slack alerts to any channel<span class="soon">soon</span></span></li>
@@ -200,8 +202,22 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
         </ul>
         <a class="btn" href="/login">Get Pro</a>
       </div>
+      <div class="plan">
+        <h3>Enterprise</h3>
+        <div class="price sm">Pay as you go</div>
+        <p class="for">For high volume. No limits, billed monthly for what you use.</p>
+        <ul>
+          <li><span><b>$1 per million logs</b>, no monthly cap</span></li>
+          <li><span>Choose how long logs are kept, up to 90 days</span></li>
+          <li><span><b>10 projects</b> included, then <b>+$10 a month</b> for each extra project</span></li>
+          <li><span>Unlimited uptime checks</span></li>
+          <li><span>Everything in Pro</span></li>
+          <li><span>Priority support</span></li>
+        </ul>
+        <a class="btn ghost" href="/login">Get started</a>
+      </div>
     </div>
-    <p class="fine">Over 20 million logs in a month? Extra logs are $1 per million, or we pause sending until the next month, your choice. Prices in USD.</p>
+    <p class="fine">Extra projects are added to your monthly bill: each project beyond your plan's included ones adds $10 for every month it exists. On Pro, logs over 20 million in a month are $1 per million, or we pause sending until the next month, your choice. Prices in USD.</p>
   </section>
 
   <div class="final">
