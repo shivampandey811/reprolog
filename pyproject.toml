@@ -5,9 +5,30 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "reprolog"
 version = "0.1.0"
-description = "Capture failing FastAPI/ASGI requests with logs and outbound calls, then replay them locally to reproduce the error."
+description = "Capture failing FastAPI/ASGI requests with their logs, spans and outbound calls, see them in a dashboard, and replay them locally to reproduce the bug."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Shivam Pandey" }]
 requires-python = ">=3.9"
 dependencies = []
+keywords = ["fastapi", "asgi", "starlette", "debugging", "observability", "replay", "logging", "logfire", "opentelemetry", "llm"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Framework :: FastAPI",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Software Development :: Debuggers",
+    "Topic :: System :: Logging",
+    "Topic :: System :: Monitoring",
+]
+
+[project.urls]
+Homepage = "https://reprolog.shivampandey78970.workers.dev"
+Dashboard = "https://reprolog.shivampandey78970.workers.dev/app"
+Source = "https://github.com/shivampandey811/reprolog"
 
 [project.optional-dependencies]
 dev = ["pytest", "httpx", "fastapi"]

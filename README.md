@@ -4,7 +4,12 @@ See every failed request in your FastAPI app: what was sent, what your code logg
 which outside APIs and LLMs it called, and the traceback. Then replay that exact
 request on your laptop to reproduce the bug.
 
-No dependencies. Data stays in a local SQLite file (`.reprolog/`, ignored by git).
+```bash
+pip install reprolog
+```
+
+No dependencies, Python 3.9+. Logs go to your cloud dashboard with a token, or stay in a
+local SQLite file (`.reprolog/`, ignored by git) without one.
 
 ## Cloud dashboard
 
@@ -35,10 +40,9 @@ if os.getenv("REPROLOG_ENABLED") == "1":   # opt-in, local only
 It must be the innermost middleware so it sees the request the way your routes do
 (after payload decryption, path stripping and similar outer layers).
 
-Install into the app's environment, from the app folder:
+Then run your app with it turned on:
 
 ```bash
-uv pip install -e ~/Desktop/projects/personal/reprolog     # or: pip install -e ...
 REPROLOG_ENABLED=1 uvicorn main:app --reload --port 8000
 ```
 
