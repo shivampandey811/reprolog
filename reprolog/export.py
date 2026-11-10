@@ -5,19 +5,41 @@ import json
 import os
 import shlex
 
+from .config import REDACTED
 from .redact import decode_body
 from .replay import SKIP_REPLAY_HEADERS
 
 
-def to_curl(record: dict, base_url: str = "http://localhost:8000") -> str:
+def original_url(record: dict) -> str | None:
+    """The URL the client actually called, as far as the proxy headers tell (None if unknown)."""
     req = record["request"]
-    url = base_url.rstrip("/") + (req.get("root_path") or "") + req["path"]
+    headers = {str(k).lower(): v for k, v in req.get("headers") or []}
+    host = (headers.get("x-forwarded-host") or headers.get("host") or "").split(",")[0].strip()
+    if not host:
+        return None
+    scheme = (headers.get("x-forwarded-proto") or req.get("scheme") or "http").split(",")[0].strip()
+    # raw_path is what the server received, before middleware such as path stripping changed it.
+    path = req.get("raw_path") or (req.get("root_path") or "") + req["path"]
+    url = f"{scheme}://{host}{path}"
     if req.get("query_string"):
         url += "?" + req["query_string"]
+    return url
+
+
+def to_curl(record: dict, base_url: str | None = "http://localhost:8000") -> str:
+    """curl for the request. base_url=None targets the original (live) URL."""
+    req = record["request"]
+    url = original_url(record) if base_url is None else None
+    if url is None:
+        url = (base_url or "http://localhost:8000").rstrip("/") + (req.get("root_path") or "") + req["path"]
+        if req.get("query_string"):
+            url += "?" + req["query_string"]
     parts = [f"curl -X {req['method']} {shlex.quote(url)}"]
     for name, value in req["headers"]:
-        if name.lower() in SKIP_REPLAY_HEADERS:
+        if name.lower() in SKIP_REPLAY_HEADERS or name.lower().startswith("x-forwarded-"):
             continue
+        if value == REDACTED:
+            value = "<redacted: paste a fresh value>"
         parts.append(f"-H {shlex.quote(f'{name}: {value}')}")
     body = req.get("body") or {}
     if body.get("encoding") == "text" and body.get("data"):

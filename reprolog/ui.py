@@ -111,7 +111,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(400, json.dumps({"error": str(err)}))
             if rec is None:
                 return self._send(404, json.dumps({"error": "not found"}))
-            rec["_curl"] = to_curl(rec)
+            rec["_curl"] = to_curl(rec, base_url=None)  # the live URL it was sent to
+            rec["_curl_local"] = to_curl(rec)
             return self._send(200, json.dumps(rec, default=str))
         if url.path == "/api/stream":
             return self._stream(int(query.get("after", ["0"])[0]))

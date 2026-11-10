@@ -553,7 +553,7 @@ function renderDrawer() {
   if (S.tab === "request") body = `<h4>Body${q.body && q.body.redacted ? " · secrets redacted" : ""}</h4><pre>${esc(pretty(q.body))}</pre><h4>Headers</h4>${kv(q.headers)}
     <h4>Replay from a terminal</h4><div class="cmd"><pre id="cli">reprolog replay ${esc(c.id)} --app ${esc(S.info.app)}</pre><button class="btn" data-copy="cli" aria-label="Copy command">${icon("i-copy")}</button></div>`;
   if (S.tab === "response") body = `<h4>Status</h4><div class="mono">${s.status ?? "–"}</div><h4>Body</h4><pre>${esc(pretty(s.body))}</pre><h4>Headers</h4>${kv(s.headers)}`;
-  if (S.tab === "raw") { const {_curl, ...raw} = c; body = `<pre id="raw">${esc(JSON.stringify(raw, null, 2))}</pre>`; }
+  if (S.tab === "raw") { const {_curl, _curl_local, ...raw} = c; body = `<pre id="raw">${esc(JSON.stringify(raw, null, 2))}</pre>`; }
   $("#dr").innerHTML = `
     <div class="dh"><span class="code ${cc(s.status)}">${s.status ?? "–"}</span>
       <div class="ttl"><div class="p"><span class="meth m-${esc(q.method)}">${esc(q.method)}</span> ${esc(q.path)}${q.query_string ? `<span class="qs">?${esc(q.query_string)}</span>` : ""}</div>
@@ -561,8 +561,10 @@ function renderDrawer() {
       <button class="x" id="dclose" title="Close (Esc)" aria-label="Close">${icon("i-x")}</button></div>
     ${storyHtml(c)}
     <div class="actions"><button class="btn solid" id="replay">${icon("i-replay")}<span>Replay locally</span></button>
-      <button class="btn" data-copy="curl-src">${icon("i-copy")}<span>Copy as curl</span></button></div>
+      <button class="btn" data-copy="curl-src" title="The same URL, headers and body it was sent with. Runs for real on that server.">${icon("i-copy")}<span>Copy curl for live</span></button>
+      ${c._curl_local ? `<button class="btn" data-copy="curl-local" title="Same request against http://localhost:8000">${icon("i-copy")}<span>Copy curl for localhost</span></button>` : ""}</div>
     <pre id="curl-src" hidden>${esc(c._curl)}</pre>
+    <pre id="curl-local" hidden>${esc(c._curl_local || "")}</pre>
     <details class="opts"${redacted.length ? " open" : ""}><summary>Replay settings${redacted.length ? ` · ${redacted.length} header(s) were redacted (${esc(redacted.join(", "))}), add fresh values below` : ""}</summary>
       <textarea id="hdrs" placeholder="One header per line, e.g.&#10;Authorization: Bearer <fresh token>" aria-label="Header overrides">${esc(lsGet("reprolog.hdrs", ""))}</textarea>
       <label><input type="checkbox" id="live-out"> Call outside APIs for real (otherwise answered from the recording)</label>

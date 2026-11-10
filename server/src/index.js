@@ -382,7 +382,8 @@ async function api(request, env, url, ctx) {
     ).bind(project.id, `${project.id}_${one[1]}`).first();
     if (!row) throw new HttpError(404, "not found");
     const rec = JSON.parse(await gunzip(row.data));
-    rec._curl = toCurl(rec);
+    rec._curl = toCurl(rec);  // the live URL it was sent to
+    rec._curl_local = toCurl(rec, "http://localhost:8000");
     return json(rec);
   }
   if (path.startsWith("/api/replay/")) {
@@ -464,16 +465,35 @@ async function cleanup(env) {
 
 // ---------------------------------------------------------------- helpers
 
-function toCurl(rec) {
+// The library stores headers as [[name, value], ...]; redacted values become placeholders.
+function headerList(req) {
+  const h = req.headers || [];
+  return Array.isArray(h) ? h : Object.entries(h);
+}
+
+// The URL the client actually called (proxy headers first; raw_path is before path stripping).
+function originalUrl(req) {
+  const h = Object.fromEntries(headerList(req).map(([k, v]) => [String(k).toLowerCase(), v]));
+  const host = String(h["x-forwarded-host"] || h.host || "").split(",")[0].trim();
+  if (!host) return null;
+  const scheme = String(h["x-forwarded-proto"] || req.scheme || "http").split(",")[0].trim();
+  const path = req.raw_path || `${req.root_path || ""}${req.path || "/"}`;
+  return `${scheme}://${host}${path}${req.query_string ? `?${req.query_string}` : ""}`;
+}
+
+function toCurl(rec, base) {
   const req = rec.request || {};
-  const parts = [`curl -X ${req.method || "GET"}`];
-  for (const [k, v] of Object.entries(req.headers || {})) {
-    if (!["host", "content-length"].includes(k.toLowerCase())) parts.push(`-H ${shq(`${k}: ${v}`)}`);
+  const url = (!base && originalUrl(req)) ||
+    `${base || "http://localhost:8000"}${req.root_path || ""}${req.path || "/"}${req.query_string ? `?${req.query_string}` : ""}`;
+  const parts = [`curl -X ${req.method || "GET"} ${shq(url)}`];
+  for (const [k, v] of headerList(req)) {
+    const name = String(k).toLowerCase();
+    if (["host", "content-length", "transfer-encoding", "connection"].includes(name) || name.startsWith("x-forwarded-")) continue;
+    parts.push(`-H ${shq(`${k}: ${v === "[REDACTED]" ? "<redacted: paste a fresh value>" : v}`)}`);
   }
-  const body = req.body ?? req.body_text;
-  if (body != null && body !== "") parts.push(`--data ${shq(typeof body === "string" ? body : JSON.stringify(body))}`);
-  const qs = req.query_string ? `?${req.query_string}` : "";
-  parts.push(shq(`http://localhost:8000${req.path || "/"}${qs}`));
+  const body = req.body || {};
+  if (body.encoding === "text" && body.data) parts.push(`--data-raw ${shq(body.data)}`);
+  else if (body.encoding === "base64") parts.push("--data-binary @body.bin  # binary body: download the raw JSON");
   return parts.join(" \\\n  ");
 }
 
