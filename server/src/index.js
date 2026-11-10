@@ -15,6 +15,7 @@ import LOGIN from "./login.html";
 import CODE_EMAIL from "./code-email.html";
 import { sendMail } from "./mail.js";
 import { monitorsApi, pruneHistory, runChecks, userPlan } from "./uptime.js";
+import { alertNewErrors, alertSettings, metricStatements, metricsSummary, sendSlack, trackErrors, validSlackWebhook } from "./alerts.js";
 
 const SESSION_COOKIE = "rpl_session";
 const PROJECT_COOKIE = "rpl_project";
@@ -60,7 +61,7 @@ async function route(request, env, ctx) {
   if (path === "/auth/config") return json({ google: !!env.GOOGLE_CLIENT_ID, email: true, dev: env.DEV_LOGIN === "1" });
   if (path === "/auth/dev" && env.DEV_LOGIN === "1") return devLogin(request, env);
   if (path === "/auth/logout") return redirect("/", [cookie(SESSION_COOKIE, "", 0)]);
-  if (path === "/v1/ingest" && method === "POST") return ingest(request, env);
+  if (path === "/v1/ingest" && method === "POST") return ingest(request, env, ctx);
 
   if (path === "/app" || path === "/app/") {
     const user = await sessionUser(request, env);
@@ -261,7 +262,7 @@ async function projectByName(env, userId, name, create) {
 
 // Body: {"project": "prod", "captures": [<capture record>, ...]}. The project can also
 // come from the X-Reprolog-Project header. Unknown projects are created on first use.
-async function ingest(request, env) {
+async function ingest(request, env, ctx) {
   const token = await findToken(env, request);
   if (!token) throw new HttpError(401, "send a write token: Authorization: Bearer rpl_w_...");
   if (token.scope !== "write") throw new HttpError(403, "this is a read token; ingest needs a write token");
@@ -282,10 +283,13 @@ async function ingest(request, env) {
   const day = new Date().toISOString().slice(0, 10);
   const used = (await env.DB.prepare("SELECT captures FROM usage_daily WHERE user_id = ? AND day = ?")
     .bind(token.user_id, day).first())?.captures || 0;
-  const room = Math.max(0, Number(env.DAILY_CAPTURE_LIMIT || 2000) - used);
+  const plan = await userPlan(env, token.user_id);
+  const dailyLimit = Number((plan === "pro" ? env.PRO_DAILY_CAPTURE_LIMIT : env.DAILY_CAPTURE_LIMIT) || 1700);
+  const room = Math.max(0, dailyLimit - used);
   const accepted = captures.slice(0, room);
 
   const stmts = [];
+  const stored = [];
   for (const cap of accepted) {
     const text = JSON.stringify(cap);
     if (text.length > MAX_CAPTURE_BYTES) continue;
@@ -300,6 +304,7 @@ async function ingest(request, env) {
       cap.replay_of ?? null, (cap.spans || []).length, (cap.logs || []).length, text.length));
     stmts.push(env.DB.prepare("INSERT OR REPLACE INTO capture_data (capture_id, data) VALUES (?, ?)")
       .bind(`${project.id}_${id}`, await gzip(text)));
+    stored.push({ cap, id });
   }
   if (stmts.length) {
     stmts.push(env.DB.prepare(
@@ -307,8 +312,13 @@ async function ingest(request, env) {
     ).bind(token.user_id, day, stmts.length / 2));
     await env.DB.batch(stmts);
   }
-  return json({ project: project.name, accepted: stmts.length ? (stmts.length - 1) / 2 : 0,
-    dropped: captures.length - accepted.length, daily_limit: Number(env.DAILY_CAPTURE_LIMIT || 2000) });
+  // Metrics are a Pro feature; free accounts' metrics are dropped to save D1 writes.
+  const metricStmts = plan === "pro" ? metricStatements(env, project.id, body.metrics) : [];
+  if (metricStmts.length) await env.DB.batch(metricStmts);
+  const fresh = await trackErrors(env, project, stored);
+  if (fresh.length && plan === "pro") ctx.waitUntil(alertNewErrors(env, token.user_id, project, fresh, new URL(request.url).origin));
+  return json({ project: project.name, accepted: stored.length, metrics: metricStmts.length,
+    dropped: captures.length - accepted.length, daily_limit: dailyLimit });
 }
 
 // ---------------------------------------------------------------- API
@@ -327,6 +337,28 @@ async function api(request, env, url, ctx) {
     if (method !== "GET" && request.headers.get("X-Reprolog") !== "1") throw new HttpError(403, "forbidden");
     userId = user.id;
     if (path === "/api/me") return json({ ...user, plan: await userPlan(env, user.id) });
+  }
+  if (path === "/api/alerts" || path === "/api/alerts/test") {
+    if (token) throw new HttpError(403, "manage alerts from the dashboard");
+    const plan = await userPlan(env, userId);
+    if (method === "GET") return json({ plan, ...(await alertSettings(env, userId)) });
+    if (plan !== "pro") throw new HttpError(402, "Alerts are part of Pro");
+    const body = await request.json().catch(() => ({}));
+    if (path === "/api/alerts/test") {
+      const hook = body.slack_webhook || (await alertSettings(env, userId)).slack_webhook;
+      if (!validSlackWebhook(hook)) throw new HttpError(400, "paste a Slack incoming-webhook URL (https://hooks.slack.com/...)");
+      await sendSlack(hook, ":white_check_mark: reprolog is connected. New errors and downtime alerts will show up here.")
+        .catch((err) => { throw new HttpError(400, String(err.message)); });
+      return json({ sent: true });
+    }
+    const hook = String(body.slack_webhook || "").trim();
+    if (hook && !validSlackWebhook(hook)) throw new HttpError(400, "paste a Slack incoming-webhook URL (https://hooks.slack.com/...)");
+    await env.DB.prepare(
+      `INSERT INTO alert_settings (user_id, email_on_error, email_on_uptime, slack_webhook, updated_at) VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(user_id) DO UPDATE SET email_on_error = excluded.email_on_error, email_on_uptime = excluded.email_on_uptime,
+         slack_webhook = excluded.slack_webhook, updated_at = excluded.updated_at`,
+    ).bind(userId, body.email_on_error ? 1 : 0, body.email_on_uptime ? 1 : 0, hook || null, now()).run();
+    return json({ plan, ...(await alertSettings(env, userId)) });
   }
   if (path.startsWith("/api/monitors")) {
     if (token) throw new HttpError(403, "manage uptime checks from the dashboard");
@@ -371,6 +403,19 @@ async function api(request, env, url, ctx) {
   if (path === "/api/info") {
     return json({ app: project ? project.name : "no project yet", db: "Cloudflare D1", cwd: "", hosted: true,
       count: project ? (await env.DB.prepare("SELECT COUNT(*) AS n FROM captures WHERE project_id = ?").bind(project.id).first()).n : 0 });
+  }
+  if (path === "/api/metrics") {
+    const plan = await userPlan(env, userId);
+    if (!project) return json({ plan, empty: true });
+    const hours = [1, 24, 168, 720].includes(Number(url.searchParams.get("hours"))) ? Number(url.searchParams.get("hours")) : 24;
+    return json({ plan, project: project.name, ...(plan === "pro" ? await metricsSummary(env, project.id, hours) : { locked: true }) });
+  }
+  if (path === "/api/errors") {
+    if (!project) return json([]);
+    const { results } = await env.DB.prepare(
+      `SELECT fingerprint, error_type, message, method, path, first_seen, last_seen, count, sample_id
+         FROM error_groups WHERE project_id = ? ORDER BY last_seen DESC LIMIT 50`).bind(project.id).all();
+    return json(results);
   }
   if (path === "/api/captures") {
     if (!project) return json([]);
@@ -466,6 +511,11 @@ async function cleanup(env) {
       env.DB.prepare(`DELETE FROM captures WHERE id IN (${marks})`).bind(...ids),
     ]);
   }
+  const monthAgo = now() - 30 * 86400;
+  await env.DB.batch([
+    env.DB.prepare("DELETE FROM metric_minutes WHERE minute < ?").bind(Math.floor(monthAgo / 60)),
+    env.DB.prepare("DELETE FROM error_groups WHERE last_seen < ?").bind(monthAgo),
+  ]);
   const oldDay = new Date((cutoff - 86400) * 1000).toISOString().slice(0, 10);
   await env.DB.prepare("DELETE FROM usage_daily WHERE day < ?").bind(oldDay).run();
 }

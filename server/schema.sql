@@ -119,3 +119,42 @@ CREATE TABLE IF NOT EXISTS incidents (
     cause TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_incidents_monitor ON incidents(monitor_id, started_at DESC);
+
+-- Request metrics sent by the library once a minute (every request, not just failures).
+-- One row per process per route per minute; queries sum them. buckets = JSON latency histogram.
+CREATE TABLE IF NOT EXISTS metric_minutes (
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    minute INTEGER NOT NULL,                  -- unix time / 60
+    method TEXT NOT NULL,
+    route TEXT NOT NULL,
+    count INTEGER NOT NULL,
+    errors INTEGER NOT NULL,
+    total_ms REAL NOT NULL,
+    buckets TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_metric_minutes ON metric_minutes(project_id, minute);
+
+-- Distinct errors per project, so alerts fire once per new kind of error, not per failure.
+CREATE TABLE IF NOT EXISTS error_groups (
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    fingerprint TEXT NOT NULL,
+    error_type TEXT,
+    message TEXT,
+    method TEXT,
+    path TEXT,
+    first_seen INTEGER NOT NULL,
+    last_seen INTEGER NOT NULL,
+    count INTEGER NOT NULL DEFAULT 1,
+    sample_id TEXT,
+    PRIMARY KEY (project_id, fingerprint)
+);
+CREATE INDEX IF NOT EXISTS idx_error_groups_seen ON error_groups(project_id, last_seen DESC);
+
+-- Where alerts go (Pro). Email goes to the account's address.
+CREATE TABLE IF NOT EXISTS alert_settings (
+    user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    email_on_error INTEGER NOT NULL DEFAULT 1,
+    email_on_uptime INTEGER NOT NULL DEFAULT 1,
+    slack_webhook TEXT,
+    updated_at INTEGER NOT NULL
+);

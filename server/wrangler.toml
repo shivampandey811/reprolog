@@ -18,6 +18,7 @@ crons = ["0 3 * * *", "* * * * *"]   # daily cleanup, uptime checks every minute
 RETENTION_DAYS = "7"
 DAILY_CAPTURE_LIMIT = "1700"   # free plan: ~50k logs a month per user
 MAX_PROJECTS = "3"
+PRO_DAILY_CAPTURE_LIMIT = "700000"   # Pro: ~20M logs a month
 
 # Secrets (wrangler secret put ...; locally in .dev.vars):
 #   SESSION_SECRET        random string used to sign login cookies

@@ -111,6 +111,10 @@ class ReprologMiddleware:
             if not cancelled:
                 try:
                     record = self._build_record(scope, headers, body, body_note, resp, cap, exc, started, trace_id)
+                    if not replaying and remote.enabled():
+                        route = getattr(scope.get("route"), "path", None) or record["request"]["path"]
+                        remote.record_metric(record["request"]["method"], route, record["response"]["status"],
+                                             record["duration_ms"], exc is not None)
                     if replaying:
                         registry.last_replay_record = record
                     elif self._should_save(record, cap, exc):

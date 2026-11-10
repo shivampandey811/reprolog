@@ -85,6 +85,24 @@ td{padding:10px;border-top:1px solid var(--line);vertical-align:middle}
 .barsx{grid-column:2/4;display:flex;justify-content:space-between;font-size:11px;color:var(--faint);margin-top:-2px}
 .mon .acts{grid-column:2/4;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .inc{font-size:12.5px;color:var(--muted)}
+.range{display:inline-flex;background:var(--sunk);border-radius:8px;padding:3px;margin-bottom:16px}
+.range button{border:0;background:none;padding:5px 12px;border-radius:6px;color:var(--muted)}
+.range button[aria-pressed=true]{background:var(--card);color:var(--fg);box-shadow:0 1px 2px #0002}
+.tiles{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
+.tile small{display:block;font-size:11.5px;color:var(--muted)}.tile b{font:700 20px var(--mono)}
+.tile b.bad{color:var(--err)}
+.chart{display:flex;align-items:flex-end;gap:2px;height:120px;padding-top:8px}
+.chart div{flex:1;display:flex;flex-direction:column-reverse;min-width:0;height:100%}
+.chart i{display:block;background:var(--accent);opacity:.8;border-radius:2px 2px 0 0}
+.chart i.e{background:var(--err);opacity:1;border-radius:0}
+.chartx{display:flex;justify-content:space-between;font-size:11px;color:var(--faint);margin-top:4px}
+.rt td,.rt th{white-space:nowrap}.rt td:first-child{white-space:normal;word-break:break-all}
+.num{text-align:right;font-family:var(--mono);font-size:12.5px}
+.sw{display:flex;gap:10px;align-items:center;padding:8px 0;font-size:14px}
+.sw input{width:18px;height:18px;accent-color:var(--accent)}
+.errs td{vertical-align:top}.errs .msg{color:var(--muted);font-size:12.5px;word-break:break-word}
+@media (max-width:760px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .upsell{display:flex;gap:16px;align-items:center;flex-wrap:wrap;background:var(--accent-soft);border-radius:var(--r);padding:16px 18px;margin-bottom:16px}
 .upsell p{margin:0;flex:1;min-width:220px}
 .empty{color:var(--faint);padding:14px 0 4px}
@@ -111,6 +129,8 @@ pre{background:var(--sunk);border-radius:10px;padding:12px 14px;overflow:auto;ma
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <symbol id="i-act" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/></symbol>
   <symbol id="i-up" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
   <symbol id="i-key" viewBox="0 0 24 24"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m10.7 12.3 9.8-9.8M16 7l3 3M19 4l2 2"/></symbol>
   <symbol id="i-plug" viewBox="0 0 24 24"><path d="M9 2v6M15 2v6M6 8h12v4a6 6 0 0 1-12 0zM12 18v4"/></symbol>
@@ -124,7 +144,9 @@ pre{background:var(--sunk);border-radius:10px;padding:12px 14px;overflow:auto;ma
   <label class="proj"><small>Project</small><select id="projsel" aria-label="Switch project"></select></label>
   <div class="grp">Monitor</div>
   <a class="nl" href="#activity" data-v="activity"><svg class="i"><use href="#i-act"/></svg>Activity<span class="badge" id="count"></span></a>
-  <a class="nl" href="#uptime" data-v="uptime"><svg class="i"><use href="#i-up"/></svg>Uptime<span class="pro-badge" id="upbadge">Pro</span></a>
+  <a class="nl" href="#metrics" data-v="metrics"><svg class="i"><use href="#i-chart"/></svg>Metrics<span class="pro-badge pb">Pro</span></a>
+  <a class="nl" href="#alerts" data-v="alerts"><svg class="i"><use href="#i-bell"/></svg>Alerts<span class="pro-badge pb">Pro</span></a>
+  <a class="nl" href="#uptime" data-v="uptime"><svg class="i"><use href="#i-up"/></svg>Uptime<span class="pro-badge pb">Pro</span></a>
   <div class="grp">Project</div>
   <a class="nl" href="#setup" data-v="setup"><svg class="i"><use href="#i-plug"/></svg>Setup</a>
   <a class="nl" href="#tokens" data-v="tokens"><svg class="i"><use href="#i-key"/></svg>API tokens</a>
@@ -167,6 +189,37 @@ pre{background:var(--sunk);border-radius:10px;padding:12px 14px;overflow:auto;ma
       <h2>Try it</h2>
       <pre id="trycurl"></pre>
     </div>
+  </div></section>
+
+  <section class="page" id="v-metrics" hidden><div>
+    <h1>Metrics</h1>
+    <p class="sub" id="msub">Every request your app handles, counted once a minute: traffic, error rate and latency per endpoint.</p>
+    <div class="upsell" id="mupsell" hidden><p><b>Metrics are part of Pro.</b> Request rate, error rate and p50/p95 latency for every endpoint, kept 30 days.</p><a class="btn" href="/#pricing">See Pro</a></div>
+    <div id="mbody">
+      <div class="range" id="mrange" role="group" aria-label="Time range"><button data-h="1">1 h</button><button data-h="24" aria-pressed="true">24 h</button><button data-h="168">7 days</button><button data-h="720">30 days</button></div>
+      <div class="tiles" id="mtiles"></div>
+      <div class="card"><h2>Requests <span class="sub" style="font-weight:400;font-size:12.5px">· errors in red</span></h2><div class="chart" id="mchart"></div><div class="chartx" id="mchartx"></div></div>
+      <div class="card"><h2>Endpoints</h2><div style="overflow:auto"><table class="rt"><thead><tr><th>Endpoint</th><th class="num">Requests</th><th class="num">Errors</th><th class="num">p50</th><th class="num">p95</th></tr></thead><tbody id="mroutes"></tbody></table></div>
+        <div class="empty" id="mempty2" hidden>No requests yet. Metrics start once your app runs with <code>REPROLOG_TOKEN</code> set; the first numbers appear about a minute later.</div></div>
+    </div>
+  </div></section>
+
+  <section class="page" id="v-alerts" hidden><div>
+    <h1>Alerts</h1>
+    <p class="sub">One alert per <b>new kind</b> of error (the same error happening again doesn't alert twice), plus uptime down and recovery.</p>
+    <div class="upsell" id="aupsell" hidden><p><b>Alerts are part of Pro.</b> Email and Slack when a new error appears or a URL goes down.</p><a class="btn" href="/#pricing">See Pro</a></div>
+    <div class="card" id="acard">
+      <h2>Email</h2>
+      <label class="sw"><input type="checkbox" id="a-err"> Email me when a new error appears</label>
+      <label class="sw"><input type="checkbox" id="a-up"> Email me when an uptime check goes down or recovers</label>
+      <h2 style="margin-top:18px">Slack</h2>
+      <p class="sub" style="font-size:13px;margin:0 0 10px">In Slack: <b>Apps → Incoming Webhooks → Add to Slack</b>, pick a channel, then paste the webhook URL here.</p>
+      <div class="row"><label style="flex:1;min-width:240px">Webhook URL<input type="text" id="a-slack" placeholder="https://hooks.slack.com/services/..." style="min-width:0;width:100%"></label>
+        <button class="btn ghost" type="button" id="a-test">Send test</button></div>
+      <div class="row" style="margin-top:16px"><button class="btn" type="button" id="a-save">Save</button><span class="sub" id="a-msg" style="margin:0;font-size:13px"></span></div>
+    </div>
+    <div class="card"><h2>Errors in this project</h2><div style="overflow:auto"><table class="errs"><thead><tr><th>Error</th><th>Endpoint</th><th class="num">Times</th><th>First seen</th><th>Last seen</th></tr></thead><tbody id="elist"></tbody></table></div>
+      <div class="empty" id="eempty" hidden>No errors recorded in this project yet.</div></div>
   </div></section>
 
   <section class="page" id="v-uptime" hidden><div>
@@ -212,7 +265,7 @@ const $=s=>document.querySelector(s), esc=s=>String(s??"").replace(/[&<>"]/g,c=>
 const api=(p,o={})=>fetch(p,{...o,headers:{"X-Reprolog":"1","Content-Type":"application/json",...(o.headers||{})}}).then(r=>r.json());
 const ago=t=>{if(!t)return"Never";const s=Date.now()/1e3-t;return s<60?"Just now":s<3600?Math.floor(s/60)+"m ago":s<86400?Math.floor(s/3600)+"h ago":new Date(t*1e3).toLocaleDateString()};
 let PROJ=[];
-const VIEWS=["activity","uptime","setup","tokens","settings"];
+const VIEWS=["activity","metrics","alerts","uptime","setup","tokens","settings"];
 
 function show(){
   const v=VIEWS.includes(location.hash.slice(1))?location.hash.slice(1):"activity";
@@ -221,8 +274,10 @@ function show(){
   if(v==="activity"&&!$("#v-activity").src)$("#v-activity").src="/app/activity";
   if(v==="tokens")loadTokens();
   if(v==="uptime")loadMonitors();
+  if(v==="metrics")loadMetrics();
+  if(v==="alerts")loadAlerts();
   clearInterval(window._mt); if(v==="uptime")window._mt=setInterval(loadMonitors,30000);
-  document.title={activity:"Activity",uptime:"Uptime",setup:"Setup",tokens:"API tokens",settings:"Settings"}[v]+" · reprolog";
+  document.title={activity:"Activity",metrics:"Metrics",alerts:"Alerts",uptime:"Uptime",setup:"Setup",tokens:"API tokens",settings:"Settings"}[v]+" · reprolog";
 }
 addEventListener("hashchange",show);
 
@@ -299,7 +354,7 @@ const pct=v=>v==null?"–":(v>=99.995?"100":v.toFixed(v>=99?2:1))+"%";
 async function loadMonitors(){
   MON=await api("/api/monitors");
   const pro=MON.plan==="pro";
-  $("#upsell").hidden=pro; $("#mon-add").hidden=!pro; $("#upbadge").hidden=pro;
+  $("#upsell").hidden=pro; $("#mon-add").hidden=!pro;
   $("#mhelp").textContent=`${MON.monitors.length} of ${MON.limit} used. Checks run every minute; a URL counts as down when it errors, times out after 10 s, or returns 400 or above.`;
   $("#mempty").hidden=MON.monitors.length>0;
   $("#mcount").textContent=MON.monitors.length?`Your checks (${MON.monitors.length})`:"Your checks";
@@ -329,7 +384,45 @@ $("#mform").onsubmit=async e=>{e.preventDefault();
 $("#mlist").onclick=async e=>{const b=e.target.closest("[data-act]");if(!b)return;
   if(b.dataset.act==="delete"&&!confirm(`Stop checking "${b.dataset.name}" and delete its history?`))return;
   await api(`/api/monitors/${b.dataset.m}/${b.dataset.act}`,{method:"POST"});loadMonitors()};
-api("/api/me").then(u=>{$("#upbadge").hidden=u.plan==="pro"});
+api("/api/me").then(u=>{document.querySelectorAll(".pb").forEach(b=>b.hidden=u.plan==="pro")});
+let HOURS=24;
+const fmtN=n=>n>=1e6?(n/1e6).toFixed(1)+"M":n>=1e4?(n/1e3).toFixed(0)+"k":n>=1e3?(n/1e3).toFixed(1)+"k":String(n);
+const fmtMs=v=>v==null?"–":v>=1000?(v/1000).toFixed(1)+" s":v+" ms";
+const fmtPct=v=>(v*100).toFixed(v>=0.1||v===0?1:2)+"%";
+$("#mrange").onclick=e=>{const b=e.target.closest("button");if(!b)return;HOURS=+b.dataset.h;
+  $("#mrange").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));loadMetrics()};
+async function loadMetrics(){
+  const d=await api(`/api/metrics?hours=${HOURS}`);
+  $("#mupsell").hidden=!d.locked; $("#mbody").hidden=!!d.locked||!!d.empty;
+  if(d.locked||d.empty)return;
+  $("#msub").textContent=`Project ${d.project}: every request your app handles, counted once a minute.`;
+  const t=d.total;
+  $("#mtiles").innerHTML=[["Requests",fmtN(t.count)],["Per minute",t.per_minute>=10?Math.round(t.per_minute):t.per_minute.toFixed(1)],
+    ["Error rate",fmtPct(t.error_rate),t.error_rate>0.01],["p50 latency",fmtMs(t.p50)],["p95 latency",fmtMs(t.p95)]]
+    .map(([k,v,bad])=>`<div class="tile"><small>${k}</small><b class="${bad?"bad":""}">${v}</b></div>`).join("");
+  const max=Math.max(1,...d.series.map(s=>s.count));
+  $("#mchart").innerHTML=d.series.map(s=>`<div title="${new Date(s.t*1e3).toLocaleString()}: ${s.count} requests, ${s.errors} errors${s.p95?`, p95 ${s.p95} ms`:""}"><i style="height:${(s.count-s.errors)/max*100}%"></i><i class="e" style="height:${s.errors/max*100}%"></i></div>`).join("");
+  const lbl={1:["1 h ago","now"],24:["24 h ago","now"],168:["7 days ago","now"],720:["30 days ago","now"]}[HOURS];
+  $("#mchartx").innerHTML=`<span>${lbl[0]}</span><span>${lbl[1]}</span>`;
+  $("#mempty2").hidden=d.routes.length>0;
+  $("#mroutes").innerHTML=d.routes.map(r=>`<tr><td><span class="pill">${esc(r.method)}</span> <code>${esc(r.route)}</code></td><td class="num">${fmtN(r.count)}</td>
+    <td class="num" style="${r.errors?"color:var(--err)":""}">${r.errors?`${fmtN(r.errors)} (${fmtPct(r.error_rate)})`:"0"}</td><td class="num">${fmtMs(r.p50)}</td><td class="num">${fmtMs(r.p95)}</td></tr>`).join("");
+}
+async function loadAlerts(){
+  const [a,errs]=await Promise.all([api("/api/alerts"),api("/api/errors")]);
+  const pro=a.plan==="pro";
+  $("#aupsell").hidden=pro; $("#acard").hidden=!pro;
+  $("#a-err").checked=a.email_on_error; $("#a-up").checked=a.email_on_uptime; $("#a-slack").value=a.slack_webhook||"";
+  $("#eempty").hidden=errs.length>0;
+  $("#elist").innerHTML=errs.map(e=>`<tr><td><b>${esc(e.error_type)}</b><div class="msg">${esc(e.message||"")}</div></td><td><code>${esc((e.method||"")+" "+e.path)}</code></td>
+    <td class="num">${fmtN(e.count)}</td><td>${ago(e.first_seen)}</td><td>${ago(e.last_seen)}</td></tr>`).join("");
+}
+const amsg=(t,bad)=>{$("#a-msg").textContent=t;$("#a-msg").style.color=bad?"var(--err)":""};
+$("#a-save").onclick=async()=>{const r=await fetch("/api/alerts",{method:"POST",headers:{"X-Reprolog":"1","Content-Type":"application/json"},
+  body:JSON.stringify({email_on_error:$("#a-err").checked,email_on_uptime:$("#a-up").checked,slack_webhook:$("#a-slack").value.trim()})});
+  const d=await r.json(); amsg(r.ok?"Saved.":d.error,!r.ok)};
+$("#a-test").onclick=async()=>{amsg("Sending…");const r=await fetch("/api/alerts/test",{method:"POST",headers:{"X-Reprolog":"1","Content-Type":"application/json"},
+  body:JSON.stringify({slack_webhook:$("#a-slack").value.trim()})});const d=await r.json();amsg(r.ok?"Sent. Check your Slack channel.":d.error,!r.ok)};
 show();
 </script>
 </body>

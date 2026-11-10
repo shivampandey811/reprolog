@@ -1,7 +1,7 @@
 // Uptime checks (Pro plan). The every-minute cron calls runChecks(); a monitor goes
 // down after 2 failed checks in a row and the owner gets an email, and another when
 // it recovers. Each check is one upsert into monitor_hours, so history stays cheap.
-import { sendMail } from "./mail.js";
+import { notify } from "./alerts.js";
 
 export const MAX_MONITORS = 10;
 const TIMEOUT_MS = 10_000;
@@ -100,7 +100,6 @@ function duration(seconds) {
 }
 
 async function alert(env, { m, r, down, since }) {
-  if (!env.SMTP_USER) return;
   const site = env.SITE_URL || "https://reprolog.shivampandey78970.workers.dev";
   const subject = down ? `🔴 ${m.name} is down` : `🟢 ${m.name} is back up`;
   const detail = down ? `Reason: ${r.error}` : `It was down for ${duration(now() - (since || now()))}. Response time now ${r.ms} ms.`;
@@ -120,7 +119,8 @@ async function alert(env, { m, r, down, since }) {
 </td></tr>
 <tr><td align="center" style="padding:16px 0 0;font-size:12px;color:#92948c">You get this because you added this URL to reprolog uptime checks.</td></tr>
 </table></td></tr></table></body></html>`;
-  await sendMail(env, { to: m.email, subject, text, html });
+  const slack = `${down ? ":red_circle:" : ":large_green_circle:"} *${m.name}* ${down ? "is down" : "is back up"}\n${m.url}\n${detail} · <${site}/app#uptime|Uptime dashboard>`;
+  await notify(env, { id: m.user_id, email: m.email }, "uptime", { email: { subject, text, html }, slack });
 }
 
 // ---------------------------------------------------------------- API (session only)

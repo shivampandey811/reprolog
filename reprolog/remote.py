@@ -72,6 +72,64 @@ def _scrub(record: dict) -> dict:
     return {**record, "request": req}
 
 
+# Per-minute request metrics for every request (not just saved failures), keyed by
+# (minute, method, route). Latency goes into fixed buckets so the server can merge
+# minutes from many processes and still compute p50/p95.
+LATENCY_BUCKETS_MS = (5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000)
+_MAX_ROUTES_PER_MINUTE = 200
+_metrics: dict = {}
+_metrics_lock = threading.Lock()
+_metrics_thread = None
+
+
+def record_metric(method: str, route: str, status, duration_ms: float, failed: bool) -> None:
+    if not enabled():
+        return
+    minute = int(time.time() // 60)
+    key = (minute, method or "GET", (route or "/")[:200])
+    with _metrics_lock:
+        row = _metrics.get(key)
+        if row is None:
+            if sum(1 for k in _metrics if k[0] == minute) >= _MAX_ROUTES_PER_MINUTE:
+                key = (minute, method or "GET", "(other)")
+                row = _metrics.get(key)
+            if row is None:
+                row = _metrics[key] = [0, 0, 0.0, [0] * (len(LATENCY_BUCKETS_MS) + 1)]
+        row[0] += 1
+        row[1] += 1 if failed or (status or 0) >= 500 else 0
+        row[2] += duration_ms or 0
+        idx = next((i for i, b in enumerate(LATENCY_BUCKETS_MS) if (duration_ms or 0) <= b), len(LATENCY_BUCKETS_MS))
+        row[3][idx] += 1
+    _start_metrics()
+
+
+def _take_metrics(everything: bool = False) -> list:
+    current = int(time.time() // 60)
+    out = []
+    with _metrics_lock:
+        for key in [k for k in _metrics if everything or k[0] < current]:
+            count, errors, total_ms, buckets = _metrics.pop(key)
+            out.append({"minute": key[0], "method": key[1], "route": key[2], "count": count,
+                        "errors": errors, "total_ms": round(total_ms, 1), "buckets": buckets})
+    return out
+
+
+def _start_metrics() -> None:
+    global _metrics_thread
+    with _lock:
+        if _metrics_thread is None or not _metrics_thread.is_alive():
+            _metrics_thread = threading.Thread(target=_run_metrics, name="reprolog-metrics", daemon=True)
+            _metrics_thread.start()
+
+
+def _run_metrics() -> None:
+    while True:
+        time.sleep(15)
+        rows = _take_metrics()
+        if rows:
+            _post([], metrics=rows)
+
+
 def _start() -> None:
     global _thread
     with _lock:
@@ -97,9 +155,12 @@ def _run() -> None:
                 _pending -= len(batch)
 
 
-def _post(batch: list, attempts: int = 3) -> None:
+def _post(batch: list, attempts: int = 3, metrics: list | None = None) -> None:
     url = CONFIG.endpoint.rstrip("/") + "/v1/ingest"
-    data = json.dumps({"project": CONFIG.project, "captures": batch}, default=str).encode("utf-8")
+    payload = {"project": CONFIG.project, "captures": batch}
+    if metrics:
+        payload["metrics"] = metrics
+    data = json.dumps(payload, default=str).encode("utf-8")
     req = urllib.request.Request(url, data=data, method="POST", headers={
         "Content-Type": "application/json",
         "Authorization": f"Bearer {CONFIG.token}",
@@ -133,3 +194,6 @@ def flush(timeout: float = 10.0) -> None:
     end = time.time() + timeout
     while _pending > 0 and time.time() < end:
         time.sleep(0.1)
+    rows = _take_metrics(everything=True)
+    if rows:
+        _post([], metrics=rows)
