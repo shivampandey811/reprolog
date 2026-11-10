@@ -14,6 +14,7 @@ import APP from "./app.html";
 import LOGIN from "./login.html";
 import CODE_EMAIL from "./code-email.html";
 import { sendMail } from "./mail.js";
+import { monitorsApi, pruneHistory, runChecks, userPlan } from "./uptime.js";
 
 const SESSION_COOKIE = "rpl_session";
 const PROJECT_COOKIE = "rpl_project";
@@ -31,8 +32,10 @@ export default {
       return json({ error: "internal error" }, 500);
     }
   },
-  async scheduled(_event, env) {
+  async scheduled(event, env) {
+    if (event.cron === "* * * * *") return void (await runChecks(env));
     await cleanup(env);
+    await pruneHistory(env);
   },
 };
 
@@ -323,7 +326,11 @@ async function api(request, env, url, ctx) {
     if (!user) throw new HttpError(401, "log in first");
     if (method !== "GET" && request.headers.get("X-Reprolog") !== "1") throw new HttpError(403, "forbidden");
     userId = user.id;
-    if (path === "/api/me") return json(user);
+    if (path === "/api/me") return json({ ...user, plan: await userPlan(env, user.id) });
+  }
+  if (path.startsWith("/api/monitors")) {
+    if (token) throw new HttpError(403, "manage uptime checks from the dashboard");
+    return monitorsApi(request, env, url, userId, { json, HttpError });
   }
 
   if (path === "/api/projects" && method === "GET") {

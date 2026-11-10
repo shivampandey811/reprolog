@@ -10,9 +10,9 @@ binding = "DB"
 database_name = "reprolog"
 database_id = "f8ae861e-0daf-4963-8948-6291942a521c"
 
-# Daily 10-day cleanup (03:00 UTC).
+# Daily log cleanup at 03:00 UTC; uptime checks every minute.
 [triggers]
-crons = ["0 3 * * *"]
+crons = ["0 3 * * *", "* * * * *"]   # daily cleanup, uptime checks every minute
 
 [vars]
 RETENTION_DAYS = "7"

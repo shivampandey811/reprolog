@@ -65,6 +65,28 @@ th{font:600 11px var(--sans);text-transform:uppercase;letter-spacing:.06em;color
 td{padding:10px;border-top:1px solid var(--line);vertical-align:middle}
 .pill{font:600 11px var(--mono);padding:2px 8px;border-radius:99px;background:var(--sunk);color:var(--muted)}
 .pill.write{background:var(--warn-soft);color:var(--warn)}
+.pro-badge{margin-left:auto;font:700 9.5px var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--accent);background:var(--accent-soft);padding:1px 6px;border-radius:99px}
+.mon{display:grid;grid-template-columns:14px minmax(0,1fr) auto;gap:6px 14px;align-items:center;padding:14px 0;border-top:1px solid var(--line)}
+.mon:first-child{border-top:0;padding-top:4px}
+.sdot{width:12px;height:12px;border-radius:50%;background:var(--faint);box-shadow:0 0 0 4px color-mix(in srgb,var(--faint) 20%,transparent)}
+.sdot.up{background:#2f8f5b;box-shadow:0 0 0 4px color-mix(in srgb,#2f8f5b 22%,transparent)}
+.sdot.down{background:var(--err);box-shadow:0 0 0 4px color-mix(in srgb,var(--err) 25%,transparent);animation:pulse 1.6s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 7px color-mix(in srgb,var(--err) 10%,transparent)}}
+@media (prefers-reduced-motion:reduce){.sdot.down{animation:none}}
+.mon .nm{font-weight:650;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.mon .nm a{font:12px var(--mono);color:var(--muted);text-decoration:none;word-break:break-all;font-weight:400}
+.mon .st{font-size:12.5px;color:var(--muted)}
+.mon .st b{font-weight:600}.mon .st b.down{color:var(--err)}.mon .st b.up{color:#2f8f5b}
+.mon .nums{display:flex;gap:18px;text-align:right}
+.mon .nums div{display:grid}.mon .nums b{font:650 15px var(--mono)}.mon .nums small{font-size:11px;color:var(--faint)}
+.bars{grid-column:2/4;display:grid;grid-template-columns:repeat(24,1fr);gap:3px;height:26px;align-items:end}
+.bars i{display:block;height:100%;border-radius:3px;background:#2f8f5b;opacity:.85}
+.bars i.part{background:var(--warn)}.bars i.bad{background:var(--err)}.bars i.none{background:var(--sunk);opacity:1}
+.barsx{grid-column:2/4;display:flex;justify-content:space-between;font-size:11px;color:var(--faint);margin-top:-2px}
+.mon .acts{grid-column:2/4;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.inc{font-size:12.5px;color:var(--muted)}
+.upsell{display:flex;gap:16px;align-items:center;flex-wrap:wrap;background:var(--accent-soft);border-radius:var(--r);padding:16px 18px;margin-bottom:16px}
+.upsell p{margin:0;flex:1;min-width:220px}
 .empty{color:var(--faint);padding:14px 0 4px}
 pre{background:var(--sunk);border-radius:10px;padding:12px 14px;overflow:auto;margin:8px 0 0}
 .kv{display:grid;grid-template-columns:140px 1fr;gap:8px 16px}
@@ -89,6 +111,7 @@ pre{background:var(--sunk);border-radius:10px;padding:12px 14px;overflow:auto;ma
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <symbol id="i-act" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
   <symbol id="i-key" viewBox="0 0 24 24"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m10.7 12.3 9.8-9.8M16 7l3 3M19 4l2 2"/></symbol>
   <symbol id="i-plug" viewBox="0 0 24 24"><path d="M9 2v6M15 2v6M6 8h12v4a6 6 0 0 1-12 0zM12 18v4"/></symbol>
   <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
@@ -101,6 +124,7 @@ pre{background:var(--sunk);border-radius:10px;padding:12px 14px;overflow:auto;ma
   <label class="proj"><small>Project</small><select id="projsel" aria-label="Switch project"></select></label>
   <div class="grp">Monitor</div>
   <a class="nl" href="#activity" data-v="activity"><svg class="i"><use href="#i-act"/></svg>Activity<span class="badge" id="count"></span></a>
+  <a class="nl" href="#uptime" data-v="uptime"><svg class="i"><use href="#i-up"/></svg>Uptime<span class="pro-badge" id="upbadge">Pro</span></a>
   <div class="grp">Project</div>
   <a class="nl" href="#setup" data-v="setup"><svg class="i"><use href="#i-plug"/></svg>Setup</a>
   <a class="nl" href="#tokens" data-v="tokens"><svg class="i"><use href="#i-key"/></svg>API tokens</a>
@@ -145,6 +169,22 @@ pre{background:var(--sunk);border-radius:10px;padding:12px 14px;overflow:auto;ma
     </div>
   </div></section>
 
+  <section class="page" id="v-uptime" hidden><div>
+    <h1>Uptime</h1>
+    <p class="sub">We open each URL every minute from Cloudflare. If it fails twice in a row, you get an email; you get another when it's back.</p>
+    <div class="upsell" id="upsell" hidden><p><b>Uptime checks are part of Pro.</b> 10 URLs checked every minute, email alerts on downtime and recovery, 30 days of history.</p><a class="btn" href="/#pricing">See Pro</a></div>
+    <div class="card" id="mon-add">
+      <h2>Add a URL</h2>
+      <form class="row" id="mform">
+        <label style="flex:2;min-width:220px">URL<input type="text" id="murl" placeholder="https://api.example.com/health" required style="min-width:0;width:100%"></label>
+        <label style="flex:1;min-width:160px">Name<input type="text" id="mname" placeholder="API" maxlength="60" style="min-width:0;width:100%"></label>
+        <button class="btn" type="submit">Start checking</button>
+      </form>
+      <p class="sub" style="margin:10px 0 0;font-size:12.5px" id="mhelp"></p>
+    </div>
+    <div class="card"><h2 id="mcount">Your checks</h2><div id="mlist"></div><div class="empty" id="mempty" hidden>No URLs yet. Add a health-check URL above, for example <code>/health</code> on your API.</div></div>
+  </div></section>
+
   <section class="page" id="v-setup" hidden><div>
     <h1>Add reprolog to your FastAPI app</h1>
     <p class="sub">Your app sends failed requests here in the background. Secrets are redacted before they leave your server.</p>
@@ -172,7 +212,7 @@ const $=s=>document.querySelector(s), esc=s=>String(s??"").replace(/[&<>"]/g,c=>
 const api=(p,o={})=>fetch(p,{...o,headers:{"X-Reprolog":"1","Content-Type":"application/json",...(o.headers||{})}}).then(r=>r.json());
 const ago=t=>{if(!t)return"Never";const s=Date.now()/1e3-t;return s<60?"Just now":s<3600?Math.floor(s/60)+"m ago":s<86400?Math.floor(s/3600)+"h ago":new Date(t*1e3).toLocaleDateString()};
 let PROJ=[];
-const VIEWS=["activity","setup","tokens","settings"];
+const VIEWS=["activity","uptime","setup","tokens","settings"];
 
 function show(){
   const v=VIEWS.includes(location.hash.slice(1))?location.hash.slice(1):"activity";
@@ -180,7 +220,9 @@ function show(){
   document.querySelectorAll(".nl[data-v]").forEach(a=>a.dataset.v===v?a.setAttribute("aria-current","page"):a.removeAttribute("aria-current"));
   if(v==="activity"&&!$("#v-activity").src)$("#v-activity").src="/app/activity";
   if(v==="tokens")loadTokens();
-  document.title={activity:"Activity",setup:"Setup",tokens:"API tokens",settings:"Settings"}[v]+" · reprolog";
+  if(v==="uptime")loadMonitors();
+  clearInterval(window._mt); if(v==="uptime")window._mt=setInterval(loadMonitors,30000);
+  document.title={activity:"Activity",uptime:"Uptime",setup:"Setup",tokens:"API tokens",settings:"Settings"}[v]+" · reprolog";
 }
 addEventListener("hashchange",show);
 
@@ -251,6 +293,43 @@ $("#tproj").onchange=()=>tryCurl();
 api("/api/me").then(u=>{$("#who").textContent=u.email;
   $("#info").innerHTML=[["Name",u.name],["Email",u.email]].map(([k,v])=>`<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")});
 loadProjects();
+let MON={plan:"free",limit:10,monitors:[]};
+const dur=s=>s<90?`${s}s`:s<5400?`${Math.round(s/60)} min`:s<172800?`${(s/3600).toFixed(1)} h`:`${Math.round(s/86400)} days`;
+const pct=v=>v==null?"–":(v>=99.995?"100":v.toFixed(v>=99?2:1))+"%";
+async function loadMonitors(){
+  MON=await api("/api/monitors");
+  const pro=MON.plan==="pro";
+  $("#upsell").hidden=pro; $("#mon-add").hidden=!pro; $("#upbadge").hidden=pro;
+  $("#mhelp").textContent=`${MON.monitors.length} of ${MON.limit} used. Checks run every minute; a URL counts as down when it errors, times out after 10 s, or returns 400 or above.`;
+  $("#mempty").hidden=MON.monitors.length>0;
+  $("#mcount").textContent=MON.monitors.length?`Your checks (${MON.monitors.length})`:"Your checks";
+  const t=Date.now()/1e3;
+  $("#mlist").innerHTML=MON.monitors.map(m=>{
+    const st=m.paused?"paused":m.status;
+    const label={up:"Up",down:"Down",pending:"Waiting for first check",paused:"Paused"}[st];
+    const since=m.changed_at&&!m.paused&&st!=="pending"?` for ${dur(Math.round(t-m.changed_at))}`:"";
+    const last=m.last_checked_at?` · checked ${ago(m.last_checked_at)}${m.last_code?` · HTTP ${m.last_code}`:""}`:"";
+    const why=st==="down"&&m.last_error?` · ${esc(m.last_error)}`:"";
+    const bars=m.hours.map((h,i)=>{
+      const cls=!h?"none":h.fails===0?"":h.fails===h.checks?"bad":"part";
+      const tip=!h?"no checks":`${h.checks-h.fails}/${h.checks} OK · avg ${h.ms} ms`;
+      return `<i class="${cls}" title="${24-i}h ago: ${tip}"></i>`}).join("");
+    const inc=m.incidents.length?`<span class="inc">Last outage: ${new Date(m.incidents[0].started_at*1e3).toLocaleString()}, ${m.incidents[0].ended_at?`down ${dur(m.incidents[0].ended_at-m.incidents[0].started_at)}`:"still down"}${m.incidents[0].cause?` (${esc(m.incidents[0].cause)})`:""}</span>`:"";
+    return `<div class="mon"><span class="sdot ${st==="paused"?"":st}"></span>
+      <div><div class="nm">${esc(m.name)} <a href="${esc(m.url)}" target="_blank" rel="noopener">${esc(m.url)}</a></div>
+        <div class="st"><b class="${st}">${label}</b>${since}${last}${why}</div></div>
+      <div class="nums"><div><b>${pct(m.uptime_24h)}</b><small>24 h</small></div><div><b>${pct(m.uptime_30d)}</b><small>30 days</small></div><div><b>${m.avg_ms_24h==null?"–":m.avg_ms_24h+" ms"}</b><small>avg response</small></div></div>
+      <div class="bars" aria-label="Last 24 hours">${bars}</div><div class="barsx"><span>24 h ago</span><span>now</span></div>
+      <div class="acts">${pro?`<button class="btn ghost" data-m="${esc(m.id)}" data-act="${m.paused?"resume":"pause"}" style="padding:5px 10px;font-size:12px">${m.paused?"Resume":"Pause"}</button><button class="btn danger" data-m="${esc(m.id)}" data-act="delete" data-name="${esc(m.name)}">Delete</button>`:""}${inc}</div></div>`}).join("");
+}
+$("#mform").onsubmit=async e=>{e.preventDefault();
+  const r=await fetch("/api/monitors",{method:"POST",headers:{"X-Reprolog":"1","Content-Type":"application/json"},body:JSON.stringify({url:$("#murl").value,name:$("#mname").value})});
+  const d=await r.json(); if(!r.ok)return alert(d.error);
+  $("#murl").value="";$("#mname").value="";loadMonitors()};
+$("#mlist").onclick=async e=>{const b=e.target.closest("[data-act]");if(!b)return;
+  if(b.dataset.act==="delete"&&!confirm(`Stop checking "${b.dataset.name}" and delete its history?`))return;
+  await api(`/api/monitors/${b.dataset.m}/${b.dataset.act}`,{method:"POST"});loadMonitors()};
+api("/api/me").then(u=>{$("#upbadge").hidden=u.plan==="pro"});
 show();
 </script>
 </body>

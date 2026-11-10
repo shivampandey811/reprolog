@@ -74,3 +74,48 @@ CREATE TABLE IF NOT EXISTS login_codes (
     attempts INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_login_codes_email ON login_codes(email, created_at);
+
+-- Paid plans. No row = free. Set by hand for now (no payment provider yet):
+--   INSERT OR REPLACE INTO subscriptions (user_id, plan, updated_at) VALUES ('<user id>', 'pro', unixepoch());
+CREATE TABLE IF NOT EXISTS subscriptions (
+    user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    plan TEXT NOT NULL CHECK (plan IN ('free', 'pro')),
+    updated_at INTEGER NOT NULL
+);
+
+-- Uptime checks (Pro). Checked every minute by the cron trigger.
+CREATE TABLE IF NOT EXISTS monitors (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    url TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    paused INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'pending',   -- pending, up, down
+    fail_streak INTEGER NOT NULL DEFAULT 0,   -- down after 2 failed checks in a row
+    last_checked_at INTEGER,
+    last_code INTEGER,
+    last_ms INTEGER,
+    last_error TEXT,
+    changed_at INTEGER                        -- when status last flipped
+);
+CREATE INDEX IF NOT EXISTS idx_monitors_user ON monitors(user_id);
+
+-- One row per monitor per hour (one upsert per check keeps D1 writes low).
+CREATE TABLE IF NOT EXISTS monitor_hours (
+    monitor_id TEXT NOT NULL REFERENCES monitors(id) ON DELETE CASCADE,
+    hour INTEGER NOT NULL,                    -- unix time / 3600
+    checks INTEGER NOT NULL DEFAULT 0,
+    fails INTEGER NOT NULL DEFAULT 0,
+    total_ms INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (monitor_id, hour)
+);
+
+CREATE TABLE IF NOT EXISTS incidents (
+    id TEXT PRIMARY KEY,
+    monitor_id TEXT NOT NULL REFERENCES monitors(id) ON DELETE CASCADE,
+    started_at INTEGER NOT NULL,
+    ended_at INTEGER,
+    cause TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_incidents_monitor ON incidents(monitor_id, started_at DESC);
