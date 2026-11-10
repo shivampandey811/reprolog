@@ -12,6 +12,7 @@ import SITE from "../../reprolog/site.html";
 import VIEWER from "../../reprolog/viewer.html";
 import APP from "./app.html";
 import LOGIN from "./login.html";
+import CODE_EMAIL from "./code-email.html";
 import { sendMail } from "./mail.js";
 
 const SESSION_COOKIE = "rpl_session";
@@ -135,6 +136,9 @@ async function emailStart(request, env) {
     to: email,
     subject: `${code} is your reprolog sign-in code`,
     text: `Your reprolog sign-in code is ${code}\n\nIt expires in 10 minutes. If you didn't ask for it, ignore this email.`,
+    html: CODE_EMAIL.replaceAll("{{CODE}}", code)
+      .replaceAll("{{SITE}}", new URL(request.url).origin)
+      .replaceAll("{{SITE_HOST}}", new URL(request.url).host),
   }).catch((err) => {
     console.error("sendMail failed", err);
     throw new HttpError(502, "couldn't send the email, try again in a minute");

@@ -1,4 +1,4 @@
-"""Send saved captures to the hosted dashboard (REPROLOG_TOKEN + REPROLOG_ENDPOINT).
+"""Send captures to the cloud dashboard of the account that owns REPROLOG_TOKEN.
 
 A daemon thread batches records and POSTs them to <endpoint>/v1/ingest with the
 stdlib (urllib), so the outbound recorder never sees these calls. Requests never
@@ -11,6 +11,7 @@ import sys
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 from .config import CONFIG
@@ -29,6 +30,21 @@ _SECRET_HEADERS = {"authorization", "proxy-authorization", "cookie", "x-api-key"
 
 def enabled() -> bool:
     return bool(CONFIG.token and CONFIG.endpoint)
+
+
+def fetch(capture_id: str):
+    """Download one capture from the cloud (for `reprolog replay <id>`); None if not found."""
+    url = f"{CONFIG.endpoint.rstrip('/')}/api/captures/{capture_id}?project={urllib.parse.quote(CONFIG.project)}"
+    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {CONFIG.token}", "User-Agent": "reprolog-python"})
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            rec = json.loads(resp.read())
+    except urllib.error.HTTPError as err:
+        if err.code == 404:
+            return None
+        raise SystemExit(f"Could not download capture {capture_id}: {err.code} {err.read()[:200].decode('utf-8', 'replace')}")
+    rec.pop("_curl", None)
+    return rec
 
 
 def send(record: dict) -> None:

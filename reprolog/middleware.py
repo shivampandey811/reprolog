@@ -114,8 +114,10 @@ class ReprologMiddleware:
                     if replaying:
                         registry.last_replay_record = record
                     elif self._should_save(record, cap, exc):
-                        await asyncio.to_thread(storage.save, record)
-                        remote.send(record)
+                        if remote.enabled():
+                            remote.send(record)
+                        if not remote.enabled() or CONFIG.keep_local:
+                            await asyncio.to_thread(storage.save, record)
                 except Exception:
                     pass  # capturing must never break a request
 

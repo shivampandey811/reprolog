@@ -8,7 +8,7 @@ import os
 import sys
 import textwrap
 
-from . import storage
+from . import remote, storage
 from .config import CONFIG
 
 
@@ -42,6 +42,8 @@ def _get(cid: str) -> dict:
         rec = storage.get(cid)
     except LookupError as err:
         sys.exit(str(err))
+    if rec is None and remote.enabled():
+        rec = remote.fetch(cid)  # captures sent to the cloud dashboard
     if rec is None:
         sys.exit(f"No capture found for '{cid}'. Run `reprolog list` to see ids.")
     return rec
@@ -163,7 +165,11 @@ def cmd_replay(args):
         new["replay_of"] = rec["id"]
         new["created_at"] = new.get("created_at") or _time.time()
         new.setdefault("spans", [])
-        storage.save(new)
+        if remote.enabled():
+            remote.send(new)
+            remote.flush()
+        else:
+            storage.save(new)
     payload = {"verdict": result["verdict"], "replayed": new, "saved_id": new.get("id") if args.save else None}
     if args.out_json:
         with open(args.out_json, "w") as fh:

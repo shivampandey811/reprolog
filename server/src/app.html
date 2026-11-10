@@ -160,9 +160,9 @@ pre{background:var(--sunk);border-radius:10px;padding:12px 14px;overflow:auto;ma
       <dt>REPROLOG_CAPTURE_ALL</dt><dd>1 saves every request, not only failures</dd>
       <dt>REPROLOG_MIN_STATUS</dt><dd>lowest status saved (default 500; 400 adds 4xx)</dd>
       <dt>REPROLOG_KEEP_AUTH</dt><dd>1 keeps auth headers locally so replays authenticate</dd>
-      <dt>REPROLOG_TOKEN</dt><dd>write token; logs are also sent here</dd>
+      <dt>REPROLOG_TOKEN</dt><dd>write token; logs are sent to this dashboard</dd>
       <dt>REPROLOG_PROJECT</dt><dd>project name, e.g. dev or prod</dd>
-      <dt>REPROLOG_ENDPOINT</dt><dd>address of this site</dd>
+      <dt>REPROLOG_KEEP_LOCAL</dt><dd>1 also keeps a copy in a local SQLite file</dd>
     </dl></div>
   </div></section>
 </main>
@@ -209,7 +209,7 @@ $("#tlist").onclick=async e=>{const b=e.target.closest("[data-id]");if(!b)return
 function tryCurl(tok){
   const t=tok||"<your token>", p=(PROJ.find(x=>x.id===$("#tproj").value)||{}).name||"prod";
   $("#trycurl").textContent=scope==="write"
-    ?`# in your app's environment\nREPROLOG_ENABLED=1\nREPROLOG_TOKEN=${t}\nREPROLOG_PROJECT=${p}\nREPROLOG_ENDPOINT=${location.origin}`
+    ?`# in your app's environment\nREPROLOG_ENABLED=1\nREPROLOG_TOKEN=${t}\nREPROLOG_PROJECT=${p}`
     :`curl -H "Authorization: Bearer ${t}" \\\n  "${location.origin}/api/captures?project=${p}&limit=20"`;
 }
 tryCurl();
@@ -226,11 +226,10 @@ if os.getenv("REPROLOG_ENABLED") == "1":
     import reprolog
     reprolog.init(app)`],
   ["Create a write token","Under API tokens. Lock it to one project if you like.",`# shown once, e.g. rpl_w_...`],
-  ["Set four environment variables","REPROLOG_PROJECT is any name: dev, prod, staging. A new name creates the project.",
+  ["Set three environment variables","REPROLOG_PROJECT is any name: dev, prod, staging. A new name creates the project.",
 `REPROLOG_ENABLED=1
 REPROLOG_TOKEN=rpl_w_...
-REPROLOG_PROJECT=prod
-REPROLOG_ENDPOINT=${location.origin}`],
+REPROLOG_PROJECT=prod`],
   ["Run your app","Failures show up under Activity within a few seconds. Logs are kept for 10 days.",`uvicorn main:app`],
 ];
 $("#steps").innerHTML=STEPS.map(([t,d,c])=>`<li><b>${esc(t)}</b><span class="sub" style="margin:0">${esc(d)}</span><pre>${esc(c)}</pre></li>`).join("");

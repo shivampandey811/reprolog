@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<title>Your reprolog sign-in code</title>
+<style>
+  @media (prefers-color-scheme: dark) {
+    .bg { background: #121412 !important; }
+    .card { background: #1d211e !important; border-color: #2a2f2b !important; }
+    .fg { color: #e8eae4 !important; }
+    .muted { color: #a3a89e !important; }
+    .codebox { background: #163631 !important; color: #3cc7b0 !important; }
+    .accent { color: #3cc7b0 !important; }
+  }
+  @media (max-width: 480px) {
+    .card { padding: 28px 20px !important; }
+    .code { font-size: 30px !important; letter-spacing: 8px !important; }
+  }
+</style>
+</head>
+<body class="bg" style="margin:0;padding:0;background:#f3f1ec;">
+  <!-- Preheader: the preview line most inboxes show next to the subject -->
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;">Your code is {{CODE}}. It expires in 10 minutes.&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="bg" style="background:#f3f1ec;">
+    <tr>
+      <td align="center" style="padding:40px 16px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:460px;">
+          <tr>
+            <td align="center" style="padding:0 0 20px;font:800 24px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;letter-spacing:-0.5px;">
+              <span class="fg" style="color:#1d1f1c;">repro</span><span class="accent" style="color:#0d8a7a;">log</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="card" style="background:#ffffff;border:1px solid #e2ded4;border-radius:16px;padding:36px 32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+              <h1 class="fg" style="margin:0 0 8px;font-size:20px;line-height:1.3;font-weight:700;color:#1d1f1c;">Your sign-in code</h1>
+              <p class="muted" style="margin:0 0 24px;font-size:15px;line-height:1.55;color:#5f625b;">Enter this code on the reprolog sign-in page to open your dashboard.</p>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="center" class="codebox" style="background:#d9efe9;border-radius:12px;padding:20px 12px;">
+                    <span class="code accent" style="font:700 36px/1 'SF Mono',Menlo,Consolas,'Courier New',monospace;letter-spacing:12px;color:#0d8a7a;">{{CODE}}</span>
+                  </td>
+                </tr>
+              </table>
+              <p class="muted" style="margin:20px 0 0;font-size:14px;line-height:1.55;color:#5f625b;">The code expires in <strong class="fg" style="color:#1d1f1c;">10 minutes</strong> and works once.</p>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:24px;">
+                <tr><td style="border-top:1px solid #e2ded4;font-size:0;line-height:0;" class="card">&nbsp;</td></tr>
+              </table>
+              <p class="muted" style="margin:16px 0 0;font-size:13px;line-height:1.55;color:#92948c;">Didn't try to sign in? You can ignore this email. Nobody can get into your account without this code.</p>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" class="muted" style="padding:20px 8px 0;font:12px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#92948c;">
+              reprolog &middot; capture, inspect and replay failing requests<br>
+              <a href="{{SITE}}" class="accent" style="color:#0d8a7a;text-decoration:none;">{{SITE_HOST}}</a>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

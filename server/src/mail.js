@@ -3,7 +3,7 @@
 // requires 2-step verification on that Google account).
 import { connect } from "cloudflare:sockets";
 
-export async function sendMail(env, { to, subject, text }) {
+export async function sendMail(env, { to, subject, text, html }) {
   if (!env.SMTP_USER || !env.SMTP_PASS) throw new Error("SMTP_USER / SMTP_PASS are not set");
   const host = env.SMTP_HOST || "smtp.gmail.com";
   const from = env.MAIL_FROM || env.SMTP_USER;
@@ -33,6 +33,18 @@ export async function sendMail(env, { to, subject, text }) {
   }
   const send = (line) => writer.write(enc.encode(line + "\r\n"));
   const b64 = (s) => btoa(unescape(encodeURIComponent(s)));
+  const wrap = (s) => b64(s).replace(/.{76}/g, "$&\r\n");
+  // Plain text only, or text + HTML as multipart/alternative (clients pick the HTML).
+  const body = (plain, rich) => {
+    if (!rich) return ["Content-Type: text/plain; charset=UTF-8", "Content-Transfer-Encoding: base64", "", wrap(plain)];
+    const boundary = `rpl-${crypto.randomUUID()}`;
+    return [
+      `Content-Type: multipart/alternative; boundary="${boundary}"`, "",
+      `--${boundary}`, "Content-Type: text/plain; charset=UTF-8", "Content-Transfer-Encoding: base64", "", wrap(plain),
+      `--${boundary}`, "Content-Type: text/html; charset=UTF-8", "Content-Transfer-Encoding: base64", "", wrap(rich),
+      `--${boundary}--`,
+    ];
+  };
 
   try {
     await reply([220]);
@@ -57,10 +69,7 @@ export async function sendMail(env, { to, subject, text }) {
       `Date: ${new Date().toUTCString()}`,
       `Message-ID: <${crypto.randomUUID()}@reprolog>`,
       "MIME-Version: 1.0",
-      "Content-Type: text/plain; charset=UTF-8",
-      "Content-Transfer-Encoding: base64",
-      "",
-      b64(text).replace(/.{76}/g, "$&\r\n"),
+      ...body(text, html),
       ".",
     ].join("\r\n");
     await send(message);

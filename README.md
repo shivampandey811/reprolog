@@ -6,6 +6,22 @@ request on your laptop to reproduce the bug.
 
 No dependencies. Data stays in a local SQLite file (`.reprolog/`, ignored by git).
 
+## Cloud dashboard
+
+Sign in at https://reprolog.shivampandey78970.workers.dev with your email or Google,
+create a write token under **API tokens**, and set:
+
+```bash
+REPROLOG_ENABLED=1
+REPROLOG_TOKEN=rpl_w_...
+REPROLOG_PROJECT=prod        # any name; a new one creates the project
+```
+
+Captures are then sent to your dashboard in the background (no local SQLite file;
+`REPROLOG_KEEP_LOCAL=1` keeps a copy too). `reprolog replay <id> --app main:app`
+downloads a capture with the same token and reproduces it locally. Logs are kept 10 days.
+Without a token everything below works offline as before.
+
 ## Add it to an app
 
 Right after `app = FastAPI()`, before any other `app.add_middleware(...)`:

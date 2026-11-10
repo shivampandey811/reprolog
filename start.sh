@@ -66,7 +66,7 @@ fi
 # --- demo app + local viewer -----------------------------------------------------
 cd "$ROOT" || exit 1
 export PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" PYTHONUNBUFFERED=1
-export REPROLOG_ENABLED=1 REPROLOG_CAPTURE_ALL=1 REPROLOG_DB="$STATE/demo.db"
+export REPROLOG_ENABLED=1 REPROLOG_CAPTURE_ALL=1 REPROLOG_DB="$STATE/demo.db" REPROLOG_KEEP_LOCAL=1  # local viewer reads this copy
 export REPROLOG_TOKEN="$(cat "$TOKEN_FILE")" REPROLOG_PROJECT=dev REPROLOG_ENDPOINT="http://localhost:$SERVER_PORT"
 ( cd tests && "$ROOT/.venv/bin/python" -m uvicorn demo_app:app --port $DEMO_PORT 2>&1 | prefix "34" "demo" ) &
 pids+=($!)
